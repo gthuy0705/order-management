@@ -1,0 +1,40 @@
+{
+  "name": "order-management",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "postinstall": "prisma generate",
+    "db:up": "docker compose up -d --wait",
+    "db:setup": "prisma migrate deploy",
+    "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:int": "vitest run --project integration",
+    "typecheck": "next typegen && tsc --noEmit",
+    "lint": "eslint",
+    "check": "npm run typecheck && npm run lint && npm test"
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.3",
+    "next": "16.4.6",
+    "prisma": "6.19.3",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.6",
+    "tsx": "^4.23.15",
+    "typescript": "^5",
+    "vitest": "^5.1.0"
+  },
+  "engines": {
+    "node": ">=22.12"
+  }
+}
