@@ -1,10 +1,5 @@
 import type { OrderStatus } from "@prisma/client";
-
-export const STATUS_LABELS: Record<OrderStatus, string> = {
-  NEW: "Mới",
-  DELIVERED: "Đã giao",
-  CANCELLED: "Đã hủy",
-};
+import { STATUS_LABELS } from "./labels";
 
 // Base class so lib/http.ts can tell expected business errors apart from bugs.
 export class DomainError extends Error {

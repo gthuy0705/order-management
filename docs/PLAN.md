@@ -204,18 +204,22 @@ Viết test **trước**, trong `tests/unit/`:
 
 Không dùng UI library; một file `app/globals.css` nhỏ (bảng, form, badge trạng thái, thông báo lỗi). Mutation dùng **Server Actions gọi service** (không gọi qua fetch API nội bộ).
 
-- [ ] Layout có nav: "Đơn hàng", "Tạo đơn", "Báo cáo doanh thu".
-- [ ] `/orders`: bảng (mã, khách hàng, mặt hàng, SL, đơn giá, thành tiền, trạng thái, ngày tạo giờ VN); filter theo trạng thái qua `searchParams`; badge màu theo trạng thái.
-- [ ] `/orders/new`: form; hiển thị **thành tiền tạm tính** phía client (chỉ để xem — server vẫn tính lại); hiển thị lỗi theo từng field trả về từ server; dùng `useActionState`.
-- [ ] `/orders/[id]`:
+- [x] Layout có nav: "Đơn hàng", "Tạo đơn", "Báo cáo doanh thu".
+- [x] `/orders`: bảng (mã, khách hàng, mặt hàng, SL, đơn giá, thành tiền, trạng thái, ngày tạo giờ VN); filter theo trạng thái qua `searchParams`; badge màu theo trạng thái.
+- [x] `/orders/new`: form; hiển thị **thành tiền tạm tính** phía client (chỉ để xem — server vẫn tính lại); hiển thị lỗi theo từng field trả về từ server; dùng `useActionState`.
+- [x] `/orders/[id]`:
   - Đơn `NEW`: form sửa + nút **"Đánh dấu đã giao"**, **"Hủy đơn"** (có `confirm`), **"Xóa"**.
   - Đơn đã chốt: hiển thị read-only + dòng thông báo "Đơn đã chốt, không thể chỉnh sửa".
   - Lỗi 409 (xung đột) hiển thị: "Đơn vừa được cập nhật ở nơi khác, hãy tải lại trang".
-- [ ] `/reports/revenue`: form chọn từ ngày / đến ngày (mặc định 30 ngày gần nhất); bảng Ngày | Số đơn | Doanh thu; dòng Tổng cộng; định dạng tiền `vi-VN` (`150.000 ₫`) — format chuỗi Decimal, không ép sang number nếu có thể.
-- [ ] Format ngày giờ hiển thị theo `Asia/Ho_Chi_Minh` (dùng `Intl.DateTimeFormat` có sẵn).
-- [ ] `revalidatePath` sau mỗi mutation.
+- [x] `/reports/revenue`: form chọn từ ngày / đến ngày (mặc định 30 ngày gần nhất); bảng Ngày | Số đơn | Doanh thu; dòng Tổng cộng; định dạng tiền `vi-VN` (`150.000 ₫`) — format chuỗi Decimal, không ép sang number nếu có thể.
+- [x] Format ngày giờ hiển thị theo `Asia/Ho_Chi_Minh` (dùng `Intl.DateTimeFormat` có sẵn).
+- [x] `revalidatePath` sau mỗi mutation (`revalidatePath("/", "layout")` — mọi trang đều hiển thị dữ liệu đơn).
+- [x] *[phát sinh khi làm]* Partial Prefetching (Next 16): trang là App Shell tĩnh (tiêu đề), phần đọc `params`/`searchParams`/DB nằm trong component con bọc `<Suspense>`; trang báo cáo gọi `connection()` trước khi tính "hôm nay" (mặc định 30 ngày).
+- [x] *[phát sinh khi làm]* `handleError` gọi `unstable_rethrow` trước tiên: route đọc `request.url` lúc prerender sẽ bị Next ngắt bằng một lỗi nội bộ — nếu nuốt lỗi đó, build sẽ prerender ra response 500 tĩnh.
+- [x] *[phát sinh khi làm]* Form dùng input không kiểm soát + `key={state.attempt}` để remount sau mỗi lần submit (React 19 tự reset form sau action) → giữ lại dữ liệu người dùng đã nhập khi lỗi validate.
+- [x] *[phát sinh khi làm]* `app/error.tsx` (Next 16 dùng `retry()`), `app/not-found.tsx`; `STATUS_LABELS` tách sang `lib/orders/labels.ts` để client component dùng được.
 
-**Tiêu chí xong:** tự đi qua luồng: tạo đơn (thử nhập SL = 0 thấy lỗi) → giao → thử sửa (bị chặn) → xem báo cáo thấy đơn vừa giao.
+**Tiêu chí xong:** (đã kiểm bằng Playwright, xem Phase 7) tự đi qua luồng: tạo đơn (thử nhập SL = 0 thấy lỗi) → giao → thử sửa (bị chặn) → xem báo cáo thấy đơn vừa giao.
 
 ---
 

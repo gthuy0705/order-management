@@ -1,3 +1,4 @@
+import { unstable_rethrow } from "next/navigation";
 import { z, ZodError } from "zod";
 import {
   ConflictError,
@@ -35,6 +36,9 @@ function statusOf(error: DomainError): number {
 
 // The single place where errors become HTTP responses.
 export function handleError(error: unknown): Response {
+  // Next.js signals control flow (e.g. "stop prerendering, this route reads
+  // request data") by throwing; those must reach Next, not become a 500.
+  unstable_rethrow(error);
   if (error instanceof ZodError) {
     const { formErrors, fieldErrors } = z.flattenError(error);
     return json({ error: formErrors[0] ?? "Dữ liệu không hợp lệ.", fieldErrors }, 400);
