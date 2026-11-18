@@ -225,12 +225,15 @@ Không dùng UI library; một file `app/globals.css` nhỏ (bảng, form, badge
 
 ## Phase 7 — E2E, CI, ảnh chụp (điểm cộng)
 
-- [ ] Cài Playwright (chỉ Chromium). 1 test e2e: tạo đơn → đánh dấu đã giao → mở báo cáo → thấy số đơn và doanh thu tăng.
-- [ ] Script `npm run screenshots` (Playwright) chụp và lưu vào `docs/screenshots/`:
+- [x] Cài Playwright (chỉ Chromium). 1 test e2e: tạo đơn → đánh dấu đã giao → mở báo cáo → thấy số đơn và doanh thu tăng.
+- [x] Script `npm run screenshots` (Playwright) chụp và lưu vào `docs/screenshots/`:
   `01-danh-sach.png`, `02-tao-don.png`, `03-loi-validate.png`, `04-doi-trang-thai.png`, `05-don-da-chot.png`, `06-bao-cao.png`.
-- [ ] `.github/workflows/ci.yml`: service Postgres 16 → `npm ci` → `prisma migrate deploy` → `npm run check`.
+- [x] `.github/workflows/ci.yml`: service Postgres 16 → `npm ci` → `prisma migrate deploy` → `npm run check`.
 
-**Tiêu chí xong:** CI xanh trên GitHub; ảnh có trong repo.
+- [x] *[phát sinh khi làm]* Playwright `1.64.1` (bản ổn định, không lấy bản mới phát hành vài ngày). `webServer` chạy `next build && next start` ở cổng 3200, `DATABASE_URL = TEST_DATABASE_URL` (e2e/ảnh không đụng dữ liệu dev); global setup `migrate deploy`; `npm run screenshots` seed DB test trước khi chụp.
+- [x] *[phát sinh khi làm]* Thêm 2 e2e nhỏ: lỗi validate giữ nguyên dữ liệu đã nhập; "Hủy đơn" cần xác nhận.
+
+**Tiêu chí xong:** CI xanh trên GitHub *(chưa xác nhận — repo chưa có remote; cần người dùng push)*; ảnh có trong repo.
 
 ---
 
