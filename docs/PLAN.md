@@ -178,8 +178,8 @@ Viết test **trước**, trong `tests/unit/`:
 
 ## Phase 5 — API (route handlers)
 
-- [ ] `lib/http.ts`: `handleError(e): Response` theo bảng map lỗi trong `CLAUDE.md`; `json(data, status)`. ZodError trả `{ error, fieldErrors }`.
-- [ ] Routes (lưu ý: Next.js 15+ `params` là `Promise` → `await params`):
+- [x] `lib/http.ts`: `handleError(e): Response` theo bảng map lỗi trong `CLAUDE.md`; `json(data, status)`. ZodError trả `{ error, fieldErrors }`.
+- [x] Routes (lưu ý: Next.js 15+ `params` là `Promise` → `await params`):
   | Method | Path | Service |
   |---|---|---|
   | `GET` | `/api/orders?status=` | `listOrders` |
@@ -189,8 +189,10 @@ Viết test **trước**, trong `tests/unit/`:
   | `DELETE` | `/api/orders/[id]` | `deleteOrder` → 204 |
   | `POST` | `/api/orders/[id]/status` | `changeStatus` |
   | `GET` | `/api/reports/revenue?from=&to=` | `revenueByDay` (mặc định 30 ngày gần nhất) |
-- [ ] JSON body không parse được → 400 (không để rơi vào 500).
-- [ ] Integration test gọi trực tiếp hàm `GET`/`POST`… export từ `route.ts` với `new Request(...)`: kiểm tra status code 201/400/404/409/422 và shape JSON (tiền là string).
+- [x] JSON body không parse được → 400 (không để rơi vào 500) — `readJson()` trong `lib/http.ts` ném `InvalidJsonError`.
+- [x] *[phát sinh khi làm]* Route dùng helper toàn cục `RouteContext<"/api/orders/[id]">` của Next 16 để type `params`.
+- [x] *[phát sinh khi làm]* Test 409: giả lập race bằng cách cho `findUnique` trả snapshot cũ (`NEW`) trong khi DB đã `DELIVERED`; test 500: lỗi bất ngờ không lộ message ra client.
+- [x] Integration test gọi trực tiếp hàm `GET`/`POST`… export từ `route.ts` với `new Request(...)`: kiểm tra status code 201/400/404/409/422 và shape JSON (tiền là string).
 
 **Tiêu chí xong:** test xanh; thử nhanh bằng `curl` (ghi các lệnh mẫu vào README).
 

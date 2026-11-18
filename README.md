@@ -1,36 +1,40 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Order Management
 
-## Getting Started
+> README đầy đủ được hoàn thiện ở Phase 8.
 
-First, run the development server:
+## API — ví dụ `curl`
+
+Tiền trong JSON luôn là **string** (vd `"150000.00"`). Lỗi trả về dạng `{ "error": "...", "fieldErrors"?: { field: [msg] } }`.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+B=http://localhost:3000/api
+
+# Tạo đơn → 201 (amount/status client gửi lên bị bỏ qua)
+curl -X POST $B/orders -H 'content-type: application/json' \
+  -d '{"customerName":"Nguyen Van A","productName":"But bi","quantity":2,"unitPrice":"150000"}'
+
+# Danh sách (lọc tùy chọn: NEW | DELIVERED | CANCELLED)
+curl "$B/orders?status=NEW"
+
+# Chi tiết → 404 nếu không tồn tại
+curl $B/orders/<id>
+
+# Sửa đơn NEW (gửi đủ 4 field) → 422 nếu đơn đã chốt
+curl -X PATCH $B/orders/<id> -H 'content-type: application/json' \
+  -d '{"customerName":"Nguyen Van A","productName":"But bi","quantity":3,"unitPrice":"150000"}'
+
+# Đổi trạng thái: DELIVERED | CANCELLED → 422 nếu đơn đã chốt, 409 nếu vừa bị đổi ở nơi khác
+curl -X POST $B/orders/<id>/status -H 'content-type: application/json' -d '{"status":"DELIVERED"}'
+
+# Xóa đơn NEW → 204
+curl -X DELETE $B/orders/<id>
+
+# Báo cáo doanh thu (ngày giờ VN, bao gồm 2 đầu; mặc định 30 ngày gần nhất)
+curl "$B/reports/revenue?from=2026-11-01&to=2026-11-18"
+
+# Dữ liệu sai → 400 kèm lỗi theo field
+curl -X POST $B/orders -H 'content-type: application/json' \
+  -d '{"customerName":"A","productName":"B","quantity":0,"unitPrice":"0"}'
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+> Trên Windows (Git Bash/cmd), tham số dòng lệnh có thể không được gửi dưới dạng UTF-8 — nên dùng ví dụ không dấu như trên, hoặc `--data-binary @body.json`.

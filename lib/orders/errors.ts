@@ -36,6 +36,6 @@ export class InvalidTransitionError extends DomainError {
 
 export class OrderLockedError extends DomainError {
   constructor(status: OrderStatus) {
-    super(`Đơn đã chốt (${STATUS_LABELS[status]}), không thể chỉnh sửa.`);
+    super(`Đơn đã chốt (${STATUS_LABELS[status]}), không thể sửa, đổi trạng thái hoặc xóa.`);
   }
 }

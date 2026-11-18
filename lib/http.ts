@@ -1,0 +1,51 @@
+import { z, ZodError } from "zod";
+import {
+  ConflictError,
+  DomainError,
+  InvalidTransitionError,
+  NotFoundError,
+  OrderLockedError,
+} from "@/lib/orders/errors";
+
+export class InvalidJsonError extends Error {
+  constructor() {
+    super("Nội dung request không phải JSON hợp lệ.");
+  }
+}
+
+export function json(data: unknown, status = 200): Response {
+  return Response.json(data, { status });
+}
+
+// A malformed body is the client's fault (400), not a server crash (500).
+export async function readJson(request: Request): Promise<unknown> {
+  try {
+    return await request.json();
+  } catch {
+    throw new InvalidJsonError();
+  }
+}
+
+function statusOf(error: DomainError): number {
+  if (error instanceof NotFoundError) return 404;
+  if (error instanceof ConflictError) return 409;
+  if (error instanceof InvalidTransitionError || error instanceof OrderLockedError) return 422;
+  return 400;
+}
+
+// The single place where errors become HTTP responses.
+export function handleError(error: unknown): Response {
+  if (error instanceof ZodError) {
+    const { formErrors, fieldErrors } = z.flattenError(error);
+    return json({ error: formErrors[0] ?? "Dữ liệu không hợp lệ.", fieldErrors }, 400);
+  }
+  if (error instanceof InvalidJsonError) {
+    return json({ error: error.message }, 400);
+  }
+  if (error instanceof DomainError) {
+    return json({ error: error.message }, statusOf(error));
+  }
+  // Unexpected: log for the operator, but never leak details to the client.
+  console.error(error);
+  return json({ error: "Lỗi hệ thống, vui lòng thử lại sau." }, 500);
+}
