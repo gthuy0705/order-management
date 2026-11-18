@@ -1,5 +1,6 @@
 import { prisma } from "../lib/db";
 import { changeStatus, createOrder } from "../lib/orders/service";
+import { addDays, vnDayStartUtc, vnToday } from "../lib/time";
 
 type SeedOrder = {
   customerName: string;
@@ -33,19 +34,10 @@ const ORDERS: SeedOrder[] = [
   { customerName: "Cao Văn Vinh", productName: "Bảng trắng 60x80", quantity: 1, unitPrice: "450000", status: "NEW", daysAgo: null },
 ];
 
-const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
-
 // Converts "N days ago at hh:mm Vietnam time" into a UTC instant.
 function vnTimeToUtc(daysAgo: number, [hour, minute]: [number, number]): Date {
-  const vnNow = new Date(Date.now() + VN_OFFSET_MS);
-  const vnLocalAsUtc = Date.UTC(
-    vnNow.getUTCFullYear(),
-    vnNow.getUTCMonth(),
-    vnNow.getUTCDate() - daysAgo,
-    hour,
-    minute,
-  );
-  return new Date(vnLocalAsUtc - VN_OFFSET_MS);
+  const dayStart = vnDayStartUtc(addDays(vnToday(), -daysAgo));
+  return new Date(dayStart.getTime() + (hour * 60 + minute) * 60 * 1000);
 }
 
 async function main() {

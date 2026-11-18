@@ -136,14 +136,15 @@ Viết test **trước**, trong `tests/unit/`:
 
 ## Phase 4 — Báo cáo doanh thu (TDD)
 
-- [ ] `lib/time.ts` (tự viết, không dùng thư viện):
+- [x] `lib/time.ts` (tự viết, không dùng thư viện):
   - `VN_OFFSET_MINUTES = 7 * 60`
   - `vnDayStartUtc(day: "YYYY-MM-DD"): Date` — 00:00 giờ VN của ngày đó, ở dạng UTC.
   - `vnToday(): "YYYY-MM-DD"`
   - `parseDayParam(s: string): string` — validate định dạng + ngày có thật (vd từ chối `2026-02-30`).
   - *[TL]* `addDays(day: string, n: number): string` — dùng cho `to + 1 ngày` và mặc định "30 ngày gần nhất".
+  - *[phát sinh khi làm]* `parseDayParam` được thay bằng `isValidDay(s): boolean` để dùng thẳng trong `z.string().refine(...)` (lỗi → `ZodError` → 400); thêm `daysBetweenInclusive` cho giới hạn 366 ngày.
   - Unit test: `vnDayStartUtc("2026-11-18")` = `2026-11-17T17:00:00.000Z`; ngày không hợp lệ ném lỗi.
-- [ ] `lib/reports/revenue.ts`:
+- [x] `lib/reports/revenue.ts`:
   ```ts
   revenueByDay({ from, to }: { from: string; to: string }) // ngày VN, bao gồm cả 2 đầu
   ```
@@ -162,7 +163,9 @@ Viết test **trước**, trong `tests/unit/`:
     ```
   - Trả thêm dòng tổng: `{ rows, total: { orders, revenue } }` (tổng tính bằng Decimal ở TS).
   - Ngày không có đơn: **không** có dòng (ghi vào Giả định).
-- [ ] Integration test:
+  - *[phát sinh khi làm]* Mặc định 30 ngày gần nhất nằm trong `revenueRangeSchema` (thiếu `from`/`to` → tự điền) để API và trang dùng chung một định nghĩa; kết quả trả kèm `from`/`to` đã chuẩn hóa.
+  - *[phát sinh khi làm]* Seed chuyển sang dùng `lib/time.ts` (bỏ logic offset tự viết trong seed).
+- [x] Integration test:
   1. Chỉ đếm `DELIVERED` (có đơn NEW, CANCELLED cùng ngày → không tính).
   2. Đơn tạo `2026-11-17T17:30:00Z` (= 00:30 ngày 18/11 giờ VN) nằm ở dòng `2026-11-18`.
   3. Đơn tạo `2026-11-17T16:59:59Z` (= 23:59:59 ngày 17/11 giờ VN) nằm ở dòng `2026-11-17`.
