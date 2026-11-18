@@ -30,30 +30,40 @@ App nhỏ quản lý đơn hàng cho bài test tại nhà (hạn 48h). Người 
 ## Cấu trúc thư mục
 
 ```
+proxy.ts                  # request id + chuyển hướng lạc quan sang /login (KHÔNG phải kiểm tra quyền)
+instrumentation.ts        # kiểm tra env lúc khởi động; log lỗi có cấu trúc (onRequestError)
 app/
-  orders/                 # trang danh sách, tạo, chi tiết
-  reports/revenue/        # trang báo cáo
+  login/                  # trang đăng nhập + login/logout Server Action (ngoài app chrome)
+  (app)/                  # route group: layout có header/nav/menu người dùng (URL không đổi)
+    orders/               # trang danh sách, tạo, chi tiết (+ lịch sử)
+    reports/revenue/      # trang báo cáo
   api/orders/...          # route handlers (mỏng)
   api/reports/revenue/
+  api/auth/login|logout/
+  api/health/
 lib/
-  db.ts                   # PrismaClient singleton
+  db.ts                   # PrismaClient singleton + isDatabaseReachable()
+  env.ts                  # Zod cho biến môi trường
+  log.ts                  # log JSON một dòng, request id
   time.ts                 # helper timezone VN (tự viết)
   http.ts                 # map lỗi domain -> HTTP response
+  auth/                   # password (scrypt), sessions, users, requireUser/requireApiUser
   orders/
-    errors.ts             # DomainError, NotFoundError, ConflictError, InvalidTransitionError
-    schema.ts             # Zod schema input
+    errors.ts             # DomainError, NotFoundError, ConflictError, InvalidTransitionError, OrderLockedError
+    schema.ts             # Zod schema input (+ version, cursor, idempotency key)
     transitions.ts        # bảng TRANSITIONS + canTransition()
-    service.ts            # TOÀN BỘ nghiệp vụ đơn hàng
+    service.ts            # TOÀN BỘ nghiệp vụ đơn hàng (kèm ghi lịch sử)
   reports/
     revenue.ts            # query báo cáo
 prisma/
   schema.prisma
   migrations/
-  seed.ts
+  seed.ts, seed-guard.ts
+scripts/create-user.ts
 tests/
   unit/
   integration/
-  e2e/                    # Phase 7
+  e2e/
 docs/screenshots/
 ```
 
@@ -62,16 +72,21 @@ docs/screenshots/
 - **Mọi thao tác ghi DB đi qua `lib/orders/service.ts`.** Route handler và Server Action chỉ: parse input → gọi service → trả kết quả / map lỗi. Không gọi `prisma.order.*` ở ngoài service/report.
 - **Không tin client:** các field `amount`, `status`, `createdAt`, `id` do client gửi lên khi tạo/sửa đều bị bỏ qua (Zod strip). Server luôn tự tính `amount` và tự đặt `status = NEW` khi tạo.
 - **Tiền:** dùng `Prisma.Decimal` cho mọi phép tính; không dùng `number` cho tiền. Trong JSON trả về, tiền là **string** (vd `"150000.00"`). Đơn giá nhận vào phải được chuyển sang Decimal từ **string** để tránh lỗi float.
-- **Sửa đơn / đổi trạng thái** dùng **update có điều kiện** (`updateMany({ where: { id, status: <trạng thái mong đợi> } })`). Nếu `count === 0` → đọc lại để phân biệt `NotFoundError` và `ConflictError`. Không dùng kiểu "đọc rồi ghi" không điều kiện.
+- **Sửa / đổi trạng thái / xóa** chạy trong `prisma.$transaction`: đọc đơn (chưa xóa mềm) → `NotFoundError` / `OrderLockedError` / `ConflictError` (version client gửi khác version hiện tại) → **update có điều kiện** `updateMany({ where: { id, status, version, deletedAt: null } })` tăng `version` → `count === 0` thì `ConflictError` → ghi `order_events` trong cùng transaction. Không dùng kiểu "đọc rồi ghi" không điều kiện. `PATCH` bắt buộc có `version`; đổi trạng thái/xóa thì tùy chọn.
+- **Xóa là xóa mềm** (`deletedAt`). Mọi truy vấn đọc phải lọc `deletedAt: null` (hằng `ACTIVE` trong service; `deleted_at IS NULL` trong SQL báo cáo).
+- **Lịch sử (`order_events`) chỉ ghi thêm** (trigger chặn UPDATE/DELETE). Mỗi thay đổi đơn phải ghi đúng một event với `actorId`. Reset dữ liệu chỉ bằng `TRUNCATE` (test, seed).
+- **Xác thực:** mọi route API nghiệp vụ gọi `requireApiUser(request)` đầu tiên; mọi Server Action và component đọc dữ liệu gọi `requireUser()`. `proxy.ts` chỉ chuyển hướng cho UX, không được coi là lớp phân quyền. Service ghi nhận `actor` làm tham số đầu.
 - **Chuyển trạng thái** chỉ được kiểm tra qua bảng `TRANSITIONS` trong `transitions.ts` (dữ liệu, không phải chuỗi if/else).
 - **Timezone:** DB lưu UTC (`timestamptz`). "Ngày nghiệp vụ" = Asia/Ho_Chi_Minh (UTC+7, không có DST). Mọi chuyển đổi ngày nằm trong `lib/time.ts`.
 - **Lỗi:** service ném lỗi domain; `lib/http.ts` map duy nhất một chỗ:
   - `ZodError` → 400 (kèm lỗi theo field)
+  - `UnauthorizedError` → 401
   - `NotFoundError` → 404
   - `ConflictError` → 409
   - `InvalidTransitionError` / `OrderLockedError` → 422
-  - lỗi khác → 500 (không lộ stack trace)
-- **DB là lớp phòng thủ thứ hai:** có CHECK constraint `quantity > 0`, `unit_price > 0`.
+  - lỗi khác → 500 (không lộ stack trace; log JSON qua `lib/log.ts`, trả `requestId`)
+- **DB là lớp phòng thủ thứ hai:** có CHECK constraint `quantity > 0`, `unit_price > 0`, `version > 0`.
+- **Seed** chỉ chạy trên DB đuôi `_dev`/`_test`/`_e2e` (`prisma/seed-guard.ts`); mọi script phá dữ liệu phải có guard tương tự.
 - **SQL thô** chỉ dùng tagged template `prisma.$queryRaw\`...\`` (tự tham số hóa). Cấm `$queryRawUnsafe`.
 - Tên biến/hàm/file: tiếng Anh. Thông báo lỗi hiển thị cho người dùng và nhãn UI: tiếng Việt.
 - Cột DB dạng `snake_case` qua `@map`/`@@map`; model Prisma dạng `camelCase`.
@@ -80,8 +95,9 @@ docs/screenshots/
 
 | Lệnh | Việc |
 |---|---|
-| `npm run db:up` | `docker compose up -d` (Postgres dev + test) |
-| `npm run db:setup` | migrate + seed DB dev |
+| `npm run db:up` | `docker compose up -d` (Postgres: orders_dev, orders_test, orders_e2e) |
+| `npm run db:setup` | migrate + seed DB dev (user `admin` / `admin1234`) |
+| `npm run user:create` | tạo/đặt lại mật khẩu user (`NEW_USER_PASSWORD=… npm run user:create -- <username> "<tên>"`) |
 | `npm run dev` | chạy app |
 | `npm run test:unit` | Vitest unit |
 | `npm run test:int` | Vitest integration (dùng DB test) |
@@ -89,7 +105,7 @@ docs/screenshots/
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
 | `npm run check` | typecheck + lint + test — **phải xanh trước khi kết thúc mỗi phase** |
-| `npm run e2e` | Playwright (Phase 7) |
+| `npm run e2e` | Playwright trên DB `orders_e2e` (cần `E2E_DATABASE_URL`) |
 
 ## Quy trình làm việc
 
