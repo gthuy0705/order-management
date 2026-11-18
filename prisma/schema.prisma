@@ -6,3 +6,24 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum OrderStatus {
+  NEW
+  DELIVERED
+  CANCELLED
+}
+
+model Order {
+  id           String      @id @default(cuid())
+  customerName String      @map("customer_name")
+  productName  String      @map("product_name")
+  quantity     Int
+  unitPrice    Decimal     @map("unit_price") @db.Decimal(18, 2)
+  amount       Decimal     @db.Decimal(18, 2)
+  status       OrderStatus @default(NEW)
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([status, createdAt])
+  @@map("orders")
+}

@@ -44,7 +44,7 @@ Plan **được duyệt** với các điều chỉnh sau (đã sửa trực ti�
 
 ## Phase 1 — Database schema
 
-- [ ] `prisma/schema.prisma` (thêm vào file khung đã có từ Phase 0):
+- [x] `prisma/schema.prisma` (thêm vào file khung đã có từ Phase 0):
   ```prisma
   enum OrderStatus { NEW DELIVERED CANCELLED }
 
@@ -63,12 +63,12 @@ Plan **được duyệt** với các điều chỉnh sau (đã sửa trực ti�
     @@map("orders")
   }
   ```
-- [ ] Migration `init`; sau đó tạo migration thứ hai **viết tay SQL** thêm:
+- [x] Migration `init`; sau đó tạo migration thứ hai **viết tay SQL** thêm:
   ```sql
   ALTER TABLE orders ADD CONSTRAINT orders_quantity_positive   CHECK (quantity > 0);
   ALTER TABLE orders ADD CONSTRAINT orders_unit_price_positive CHECK (unit_price > 0);
   ```
-- [ ] *[TL]* Seed **chuyển sang cuối Phase 2** (cần service).
+- [x] *[TL]* Seed **chuyển sang cuối Phase 2** (cần service).
 
 **Tiêu chí xong:** migrate chạy sạch trên DB mới; insert tay `quantity = 0` bị Postgres từ chối.
 
