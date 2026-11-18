@@ -239,7 +239,7 @@ Không dùng UI library; một file `app/globals.css` nhỏ (bảng, form, badge
 
 ## Phase 8 — README & kiểm tra cuối
 
-- [ ] `README.md` (tiếng Việt):
+- [x] `README.md` (tiếng Việt):
   1. Giới thiệu 2 dòng + lý do chọn Next.js thay vì Frappe (đề cho phép framework quen thuộc).
   2. Yêu cầu: Node 22.12+, Docker.
   3. Cài & chạy: `cp .env.example .env` → `npm ci` → `npm run db:up` → `npm run db:setup` → `npm run dev`.
@@ -250,7 +250,10 @@ Không dùng UI library; một file `app/globals.css` nhỏ (bảng, form, badge
   8. **Hướng mở rộng khi dữ liệu lớn:** bảng tổng hợp `daily_revenue` cập nhật trong transaction đổi trạng thái (an toàn vì đơn chỉ vào báo cáo đúng một lần và không thay đổi sau đó).
   9. **Chưa làm / có thể cải thiện:** auth & phân quyền, phân trang, bảng khách hàng/mặt hàng riêng, nhiều mặt hàng mỗi đơn.
   10. Ảnh chụp màn hình (nhúng từ `docs/screenshots/`).
-- [ ] **Kiểm tra trên bản clone sạch:** `git clone` ra thư mục tạm → làm đúng theo README từng bước → app chạy và `npm run check` xanh. Sửa README nếu có bước thiếu.
-- [ ] Rà soát: không còn `console.log` thừa, TODO, code chết, file `.env` không bị commit.
+- [x] **Kiểm tra trên bản clone sạch:** `git clone` ra thư mục tạm → làm đúng theo README từng bước → app chạy và `npm run check` xanh. Sửa README nếu có bước thiếu.
+- [x] Rà soát: không còn `console.log` thừa, TODO, code chết, file `.env` không bị commit.
+
+- [x] *[phát sinh khi làm]* Kiểm tra clone sạch: `npm ci` → `npm run db:setup` → `npm run check` (128 test) → `npm run e2e` (3 test) đều xanh. Bước `db:up` dùng lại container đang chạy (clone ở thư mục khác sẽ tranh cổng 5432); `db:up` chạy lại khi container đã lên vẫn OK.
+- [x] *[phát sinh khi làm]* `npm audit`: 3 lỗi "high" ở `deepmerge-ts` (phụ thuộc của CLI `prisma` 6.x, chỉ dùng khi đọc config cục bộ). Bản sửa yêu cầu Prisma 7 — trái ghi chú TL #1 → **giữ nguyên, chờ người dùng quyết định**.
 
 **Tiêu chí xong:** người khác chỉ đọc README là chạy được.
