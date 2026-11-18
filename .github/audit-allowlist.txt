@@ -1,0 +1,8 @@
+# Advisories accepted on purpose. One GHSA id per line; review by the date given.
+# Anything high/critical NOT listed here fails CI (.github/scripts/audit.mjs).
+
+# deepmerge-ts via @prisma/config (Prisma CLI 6.x). Used only when the CLI reads
+# local config at dev/deploy time; never reached by request data. Fix requires
+# Prisma 7 (driver adapters, new config) — tracked as a planned upgrade.
+# Accepted 2026-11-19, review by 2027-02-19. See README "Rủi ro đã chấp nhận".
+GHSA-ggr8-5vv4-36mx
