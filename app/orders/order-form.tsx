@@ -16,7 +16,7 @@ export function OrderForm({ action, initialValues, submitLabel, successMessage }
   const succeeded = state.attempt > 0 && !state.error;
 
   return (
-    <form action={formAction} className="stack" noValidate>
+    <form action={formAction} className="form" noValidate>
       {state.error && (
         <p className="alert" role="alert">
           {state.error}
@@ -30,8 +30,8 @@ export function OrderForm({ action, initialValues, submitLabel, successMessage }
         defaults={state.values ?? initialValues}
         fieldErrors={state.fieldErrors ?? {}}
       />
-      <div>
-        <button type="submit" disabled={pending}>
+      <div className="form-actions">
+        <button type="submit" className="btn btn--primary" disabled={pending}>
           {pending ? "Đang lưu…" : submitLabel}
         </button>
       </div>
@@ -55,6 +55,7 @@ function OrderFields({ defaults, fieldErrors }: FieldsProps) {
       <Field
         name="quantity"
         label="Số lượng"
+        half
         inputMode="numeric"
         defaultValue={defaults.quantity}
         errors={fieldErrors.quantity}
@@ -63,15 +64,16 @@ function OrderFields({ defaults, fieldErrors }: FieldsProps) {
       <Field
         name="unitPrice"
         label="Đơn giá (₫)"
+        half
         inputMode="decimal"
         defaultValue={defaults.unitPrice}
         errors={fieldErrors.unitPrice}
         onChange={setUnitPrice}
       />
       <p className="preview">
-        Thành tiền tạm tính: <strong>{previewAmount(quantity, unitPrice)}</strong>
-        <br />
-        <small className="muted">Chỉ để tham khảo — server sẽ tự tính lại khi lưu.</small>
+        <span className="preview__label">Thành tiền tạm tính</span>
+        <strong className="preview__value">{previewAmount(quantity, unitPrice)}</strong>
+        <small>Chỉ để tham khảo — server sẽ tự tính lại khi lưu.</small>
       </p>
     </>
   );
@@ -91,14 +93,16 @@ type FieldProps = {
   label: string;
   defaultValue: string;
   errors?: string[];
+  /** Takes half a row next to another half field (one column on a phone). */
+  half?: boolean;
   inputMode?: "numeric" | "decimal";
   onChange?: (value: string) => void;
 };
 
-function Field({ name, label, defaultValue, errors, inputMode, onChange }: FieldProps) {
+function Field({ name, label, defaultValue, errors, half, inputMode, onChange }: FieldProps) {
   const errorId = `${name}-error`;
   return (
-    <div className="field">
+    <div className={half ? "field field--half" : "field"}>
       <label htmlFor={name}>{label}</label>
       <input
         id={name}

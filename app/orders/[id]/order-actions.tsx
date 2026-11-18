@@ -21,41 +21,39 @@ export function OrderActions({ changeStatus, remove }: Props) {
   const error = statusState.error ?? deleteState.error;
 
   return (
-    <>
+    <div className="actions">
       {error && (
         <p className="alert" role="alert">
           {error}
         </p>
       )}
-      <div className="actions">
-        <form action={statusAction}>
-          <button type="submit" name="status" value="DELIVERED" disabled={pending}>
-            Đánh dấu đã giao
-          </button>
-        </form>
-        <form action={statusAction}>
-          <button
-            type="submit"
-            name="status"
-            value="CANCELLED"
-            className="secondary"
-            disabled={pending}
-            onClick={confirmOrCancel("Hủy đơn này? Đơn đã hủy không thể sửa hay khôi phục.")}
-          >
-            Hủy đơn
-          </button>
-        </form>
-        <form action={deleteAction}>
-          <button
-            type="submit"
-            className="danger"
-            disabled={pending}
-            onClick={confirmOrCancel("Xóa vĩnh viễn đơn này?")}
-          >
-            Xóa
-          </button>
-        </form>
-      </div>
-    </>
+      <form action={statusAction}>
+        <button type="submit" name="status" value="DELIVERED" className="btn btn--secondary" disabled={pending}>
+          Đánh dấu đã giao
+        </button>
+      </form>
+      <form action={statusAction}>
+        <button
+          type="submit"
+          name="status"
+          value="CANCELLED"
+          className="btn btn--secondary"
+          disabled={pending}
+          onClick={confirmOrCancel("Hủy đơn này? Đơn đã hủy không thể sửa hay khôi phục.")}
+        >
+          Hủy đơn
+        </button>
+      </form>
+      <form action={deleteAction}>
+        <button
+          type="submit"
+          className="btn btn--danger"
+          disabled={pending}
+          onClick={confirmOrCancel("Xóa vĩnh viễn đơn này?")}
+        >
+          Xóa
+        </button>
+      </form>
+    </div>
   );
 }

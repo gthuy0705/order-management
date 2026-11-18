@@ -9,6 +9,7 @@ Dùng **Next.js** thay vì Frappe vì đề cho phép framework quen thuộc: m�
 
 - Node.js **22.12+**
 - Docker (chạy PostgreSQL 16)
+- Mạng Internet khi `npm run build` / `npm run e2e`: `next/font` tải font Geist (có bộ ký tự tiếng Việt) lúc build rồi tự phục vụ, trình duyệt không gọi Google Fonts
 
 ## Cài đặt & chạy
 

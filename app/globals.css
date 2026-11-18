@@ -1,63 +1,518 @@
+/* Visual system from taste-skill (design-taste-frontend), adapted to a back-office app.
+   Dealt by the skill's scripts: palette "soot-pale-lime", type "geist" (Geist + Geist Mono,
+   the first software pairing with a Vietnamese subset), radius "soft", buttons "solid",
+   mark "ring". One token set, one button pair, one panel style, one radius scale. */
+
 :root {
-  --fg: #1f2933;
-  --muted: #616e7c;
-  --border: #d9e2ec;
-  --bg-soft: #f5f7fa;
-  --primary: #2563eb;
-  --danger: #c81e1e;
-  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: dark;
+
+  /* colour: a neutral interface, one accent (buttons, focus, the current filter) */
+  --bg: #0f0f0f;
+  --surface: #1a1a1a;
+  --ink: #ffffff;
+  --muted: #8f8f8f;
+  --action: #dafa9c;
+  --action-ink: #0f0f0f;
+  --line: color-mix(in oklab, var(--ink) 12%, transparent);
+  --line-strong: color-mix(in oklab, var(--ink) 22%, transparent);
+  --row-hover: color-mix(in oklab, var(--surface) 94%, var(--ink));
+  /* a red pulled towards the ink so it reads at 4.5:1 on the dark ground */
+  --error: color-mix(in oklab, #d92d20 72%, var(--ink));
+
+  /* order status: colour sits in the badge's dot and tint, the label says it in words */
+  --status-new: #7cc4fa;
+  --status-delivered: var(--action);
+  --status-cancelled: var(--error);
+
+  /* type */
+  --font-sans: var(--font-geist), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, Consolas, monospace;
+  --t-label: 13px;
+  --t-small: 14px;
+  --t-body: 16px;
+  --t-h2: 18px;
+  --t-h1: clamp(28px, 0.76vw + 25px, 36px);
+  --t-figure: 28px;
+
+  /* spacing scale: every margin, gap and padding comes from here */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+
+  /* radius ("soft") and controls */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 20px;
+  --r-btn: 8px;
+  --btn-h: 44px;
+  --btn-h-sm: 40px;
+  --field-h: 48px;
+
+  /* layout */
+  --nav: 72px;
+  --container: 1280px;
+  --gut: 24px;
+
+  /* motion: one ease-out, hover in 150ms, out 120ms, press 90ms */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --m-in: 150ms;
+  --m-out: 120ms;
+  --m-press: 90ms;
 }
 
-* {
+@media (min-width: 640px) {
+  :root {
+    --gut: 48px;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --gut: 80px;
+  }
+}
+
+@media (max-width: 639px) {
+  :root {
+    --nav: 56px;
+    --t-figure: 24px;
+  }
+}
+
+/* ------------------------------------------------------------------ base */
+
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
+html,
 body {
   margin: 0;
-  font-family: var(--font);
-  color: var(--fg);
-  background: #fff;
-  line-height: 1.5;
 }
 
-main {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 24px 16px 48px;
+body {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 var(--t-body) / 1.6 var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2 {
+  margin: 0;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
 h1 {
-  font-size: 1.5rem;
-  margin: 0 0 16px;
+  font-size: var(--t-h1);
+  letter-spacing: -0.035em;
+}
+
+h2 {
+  font-size: var(--t-h2);
+}
+
+p {
+  margin: 0;
 }
 
 a {
-  color: var(--primary);
+  color: inherit;
 }
 
-.site-header {
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-soft);
+/* One focus ring for every control: 2px in the accent, drawn at once. */
+:focus-visible {
+  outline: 2px solid var(--action);
+  outline-offset: 2px;
 }
 
-.site-header nav {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 12px 16px;
-  display: flex;
-  gap: 20px;
-  font-weight: 600;
+.wrap {
+  width: 100%;
+  max-width: calc(var(--container) + 2 * var(--gut));
+  margin-inline: auto;
+  padding-inline: var(--gut);
 }
 
-.site-header a {
-  text-decoration: none;
+main.wrap {
+  padding-block: var(--s-7) var(--s-8);
 }
 
 .muted {
   color: var(--muted);
 }
 
-/* Tables */
+.mono {
+  font-family: var(--font-mono);
+}
+
+/* Text link in running text: a faint hairline that the ink line draws over. */
+.link {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+  text-decoration-color: var(--line-strong);
+  transition: text-decoration-color var(--m-out) var(--ease);
+}
+
+.link:hover {
+  text-decoration-color: currentColor;
+  transition-duration: var(--m-in);
+}
+
+/* Hidden until the first Tab, then shown over the header. */
+.skip-link {
+  position: absolute;
+  top: var(--s-3);
+  left: var(--gut);
+  z-index: 20;
+  padding: var(--s-2) var(--s-4);
+  border-radius: var(--r-btn);
+  background: var(--action);
+  color: var(--action-ink);
+  font-weight: 500;
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+/* ---------------------------------------------------------------- header */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  height: var(--nav);
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.site-header__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-5);
+  height: 100%;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 44px;
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* The dealt "ring" mark, drawn as a CSS mask so it takes the accent colour. */
+.brand__mark {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  background: var(--action);
+  --ring: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm0 5.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9z'/%3E%3C/svg%3E");
+  -webkit-mask: var(--ring) center / contain no-repeat;
+  mask: var(--ring) center / contain no-repeat;
+}
+
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+}
+
+/* Nav words rest bare, brighten and draw a 1px line under them on hover; the
+   current page keeps a 2px bar. */
+.nav-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color var(--m-out) var(--ease);
+}
+
+.nav-link::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 6px;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform var(--m-out) var(--ease);
+}
+
+.nav-link:hover,
+.nav-link[aria-current="page"] {
+  color: var(--ink);
+  transition-duration: var(--m-in);
+}
+
+.nav-link:hover::after {
+  transform: scaleX(1);
+  transform-origin: left;
+  transition-duration: var(--m-in);
+}
+
+.nav-link[aria-current="page"]::after {
+  height: 2px;
+  transform: scaleX(1);
+}
+
+@media (max-width: 639px) {
+  .site-nav {
+    gap: var(--s-4);
+  }
+
+  /* On a phone the mark alone links home; the name stays for screen readers. */
+  .brand {
+    min-width: 44px;
+  }
+
+  .brand__name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+/* --------------------------------------------------------------- buttons */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  height: var(--btn-h);
+  padding: 0 var(--s-5);
+  border: 1px solid transparent;
+  border-radius: var(--r-btn);
+  font: 500 var(--t-body) / 1 var(--font-sans);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--m-out) var(--ease),
+    border-color var(--m-out) var(--ease),
+    color var(--m-out) var(--ease),
+    transform var(--m-press) var(--ease);
+}
+
+.btn--sm {
+  height: var(--btn-h-sm);
+  padding: 0 var(--s-4);
+  font-size: 15px;
+}
+
+.btn--primary {
+  background: var(--action);
+  color: var(--action-ink);
+}
+
+.btn--secondary,
+.btn--danger {
+  background: var(--bg);
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+
+.btn--danger {
+  color: var(--error);
+  border-color: color-mix(in oklab, var(--error) 45%, transparent);
+}
+
+.btn:hover:not(:disabled) {
+  transition-duration: var(--m-in), var(--m-in), var(--m-in), var(--m-press);
+}
+
+/* On hover the tone moves toward the ground. */
+.btn--primary:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--action) 84%, var(--bg));
+}
+
+.btn--secondary:hover:not(:disabled),
+.btn--danger:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--bg) 92%, var(--ink));
+  border-color: color-mix(in oklab, var(--ink) 32%, transparent);
+}
+
+.btn--danger:hover:not(:disabled) {
+  border-color: var(--error);
+}
+
+/* The step: up 1px under a mouse, 1px down and 1.5% smaller while pressed. */
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(1px) scale(0.985);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+/* ---------------------------------------------------------- page layout */
+
+.page-head {
+  display: grid;
+  gap: var(--s-2);
+  margin-bottom: var(--s-6);
+}
+
+.page-head .muted {
+  max-width: 62ch;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-bottom: var(--s-3);
+  color: var(--muted);
+  font-size: var(--t-small);
+  font-weight: 500;
+  text-decoration: none;
+  transition: color var(--m-out) var(--ease);
+}
+
+.back-link:hover {
+  color: var(--ink);
+  transition-duration: var(--m-in);
+}
+
+.title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-4);
+}
+
+.panel {
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+
+.panel--pad {
+  padding: var(--s-5);
+}
+
+@media (min-width: 640px) {
+  .panel--pad {
+    padding: var(--s-6);
+  }
+}
+
+.panel--narrow {
+  max-width: 720px;
+}
+
+.panel > h2 {
+  margin-bottom: var(--s-5);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  margin-bottom: var(--s-4);
+}
+
+/* Order detail: the form on the left, facts and status actions on the right. */
+.detail {
+  display: grid;
+  gap: var(--s-5);
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .detail {
+    grid-template-columns: minmax(0, 1fr) 360px;
+  }
+}
+
+.detail__side {
+  display: grid;
+  gap: var(--s-5);
+}
+
+/* --------------------------------------------------------------- filters */
+
+/* A segmented control: the current filter is the ink pill. */
+.filters {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--s-1);
+  padding: var(--s-1);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.filters a {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 var(--s-4);
+  border-radius: var(--r-sm);
+  color: var(--muted);
+  font-size: var(--t-small);
+  font-weight: 500;
+  text-decoration: none;
+  transition:
+    background-color var(--m-out) var(--ease),
+    color var(--m-out) var(--ease);
+}
+
+.filters a:hover {
+  background: var(--row-hover);
+  color: var(--ink);
+  transition-duration: var(--m-in);
+}
+
+.filters a[aria-current="page"] {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+@media (pointer: coarse) {
+  .filters a {
+    height: 44px;
+  }
+}
+
+/* ---------------------------------------------------------------- tables */
+
 .table-wrap {
   overflow-x: auto;
 }
@@ -65,19 +520,37 @@ a {
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.95rem;
 }
 
 th,
 td {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--line);
   text-align: left;
   white-space: nowrap;
 }
 
 th {
-  background: var(--bg-soft);
+  color: var(--muted);
+  font-size: var(--t-label);
+  font-weight: 500;
+}
+
+td {
+  height: 56px;
+}
+
+tbody tr {
+  transition: background-color var(--m-out) var(--ease);
+}
+
+tbody tr:hover {
+  background: var(--row-hover);
+  transition-duration: var(--m-in);
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
 }
 
 td.num,
@@ -87,165 +560,328 @@ th.num {
 }
 
 tfoot td {
-  font-weight: 700;
+  border-top: 1px solid var(--line-strong);
+  border-bottom: 0;
+  font-weight: 500;
 }
 
-/* Filters */
-.filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 16px;
+tfoot td.num {
+  font-size: 18px;
 }
 
-.filters a {
-  padding: 4px 12px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  text-decoration: none;
+.order-id {
+  font-family: var(--font-mono);
+  font-size: var(--t-small);
 }
 
-.filters a[aria-current="page"] {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
-}
+/* --------------------------------------------------------- status badges */
 
-/* Status badges */
 .badge {
-  display: inline-block;
-  padding: 2px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: 26px;
+  padding: 0 var(--s-3);
   border-radius: 999px;
-  font-size: 0.85rem;
-  font-weight: 600;
+  background: color-mix(in oklab, var(--status) 14%, transparent);
+  color: var(--status);
+  font-size: var(--t-label);
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
 }
 
 .badge-NEW {
-  background: #e0ecff;
-  color: #1e40af;
+  --status: var(--status-new);
 }
 
 .badge-DELIVERED {
-  background: #def7ec;
-  color: #03543f;
+  --status: var(--status-delivered);
 }
 
 .badge-CANCELLED {
-  background: #fde8e8;
-  color: #9b1c1c;
+  --status: var(--status-cancelled);
 }
 
-/* Forms */
-form.stack {
+/* ----------------------------------------------------------------- forms */
+
+.form {
   display: grid;
-  gap: 14px;
-  max-width: 480px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-5) var(--s-4);
+}
+
+.form > :not(.field--half) {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 639px) {
+  .form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.field {
+  display: grid;
+  gap: var(--s-2);
+  align-content: start;
 }
 
 .field label {
-  display: block;
-  font-weight: 600;
-  margin-bottom: 4px;
+  font-size: var(--t-small);
+  font-weight: 500;
 }
 
 input {
   width: 100%;
-  padding: 8px 10px;
-  font: inherit;
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  height: var(--field-h);
+  padding: 0 var(--s-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 var(--t-body) / 1.4 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  transition:
+    border-color 140ms var(--ease),
+    box-shadow 140ms var(--ease);
 }
 
+input:hover {
+  border-color: color-mix(in oklab, var(--ink) 35%, transparent);
+}
+
+/* A field shows focus with the accent border and a soft 3px ring. */
+input:focus-visible {
+  outline: none;
+  border-color: var(--action);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--action) 28%, transparent);
+}
+
+/* Colour is never the only sign of an error: 2px border plus the reason in words. */
 input[aria-invalid="true"] {
-  border-color: var(--danger);
+  border: 2px solid var(--error);
 }
 
 .field-error {
-  color: var(--danger);
-  font-size: 0.9rem;
-  margin: 4px 0 0;
+  color: var(--error);
+  font-size: var(--t-small);
+  font-weight: 500;
+  line-height: 1.4;
 }
 
+.field-error::before {
+  content: "!";
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  margin-right: var(--s-2);
+  border-radius: 50%;
+  background: var(--error);
+  color: var(--bg);
+  font-size: 12px;
+  line-height: 1;
+  vertical-align: -2px;
+}
+
+/* The client-side estimate: a label, the figure, and why it is only an estimate. */
+.preview {
+  display: grid;
+  gap: var(--s-1);
+  padding: var(--s-4) var(--s-5);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-md);
+}
+
+.preview__label {
+  color: var(--muted);
+  font-size: var(--t-label);
+  font-weight: 500;
+}
+
+.preview__value {
+  font-size: var(--t-figure);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.preview small {
+  color: var(--muted);
+  font-size: var(--t-label);
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+}
+
+/* Report range: dates and the button on one line, wrapping on a phone. */
 .inline-form {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: var(--s-4);
 }
 
-.inline-form .field input {
-  width: auto;
+.inline-form .field {
+  flex: 1 1 180px;
+  max-width: 240px;
 }
 
-button {
-  padding: 8px 16px;
-  font: inherit;
-  font-weight: 600;
-  border: 1px solid var(--primary);
-  border-radius: 6px;
-  background: var(--primary);
-  color: #fff;
-  cursor: pointer;
+.inline-form .btn {
+  height: var(--field-h);
 }
 
-button:disabled {
-  opacity: 0.6;
-  cursor: progress;
+@media (max-width: 639px) {
+  .inline-form .field {
+    max-width: none;
+  }
+
+  .form-actions .btn,
+  .inline-form .btn {
+    width: 100%;
+  }
 }
 
-button.secondary {
-  background: #fff;
-  color: var(--primary);
-}
+/* ------------------------------------------------------ messages, lists */
 
-button.danger {
-  background: #fff;
-  border-color: var(--danger);
-  color: var(--danger);
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 24px;
+.alert,
+.notice {
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  font-size: var(--t-small);
+  font-weight: 500;
 }
 
 .alert {
-  padding: 10px 14px;
-  border: 1px solid #f8b4b4;
-  border-radius: 6px;
-  background: #fdf2f2;
-  color: var(--danger);
+  border: 1px solid color-mix(in oklab, var(--error) 45%, transparent);
+  background: color-mix(in oklab, var(--error) 10%, transparent);
+  color: var(--error);
 }
 
 .notice {
-  padding: 10px 14px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg-soft);
+  border: 1px solid var(--line-strong);
+  background: var(--bg);
 }
 
-.preview {
-  padding: 10px 14px;
-  border-radius: 6px;
-  background: var(--bg-soft);
+.stack {
+  display: grid;
+  gap: var(--s-4);
 }
 
-/* Order detail */
+.empty {
+  padding: var(--s-7) var(--s-5);
+  text-align: center;
+}
+
+/* Label-value rows divided by hairlines. */
 dl.details {
   display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 6px 20px;
-  margin: 0 0 16px;
+  margin: 0;
+}
+
+dl.details > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+dl.details > div:first-child {
+  padding-top: 0;
+}
+
+dl.details > div:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
 }
 
 dl.details dt {
-  font-weight: 600;
+  flex: none;
   color: var(--muted);
+  font-size: var(--t-small);
+}
+
+/* A value too long to share its row (the full order id): label above, value below. */
+dl.details > .details__stack {
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+dl.details > .details__stack dd {
+  text-align: left;
+  font-size: var(--t-small);
 }
 
 dl.details dd {
   margin: 0;
+  min-width: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+dl.details .total {
+  font-size: var(--t-figure);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.actions {
+  display: grid;
+  gap: var(--s-3);
+}
+
+.actions form,
+.actions .btn {
+  width: 100%;
+}
+
+.actions .btn--danger {
+  margin-top: var(--s-3);
+}
+
+/* The narrowest phones (320): tighter gaps so the header and filters keep one
+   line. Last in the file so it overrides the rules above at equal specificity. */
+@media (max-width: 399px) {
+  .site-header__inner,
+  .site-nav {
+    gap: var(--s-3);
+  }
+
+  .site-nav .btn {
+    padding: 0 var(--s-3);
+  }
+
+  .filters a {
+    padding: 0 10px;
+  }
+}
+
+/* -------------------------------------------------------- reduced motion */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0s !important;
+  }
+
+  .btn:hover:not(:disabled),
+  .btn:active:not(:disabled) {
+    transform: none;
+  }
 }
