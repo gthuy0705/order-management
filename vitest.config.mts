@@ -45,6 +45,8 @@ export default defineConfig({
           // All files share one test database; running them in parallel would
           // let one file's TRUNCATE wipe another file's data mid-test.
           fileParallelism: false,
+          globalSetup: ["tests/integration/global-setup.ts"],
+          setupFiles: ["tests/integration/setup.ts"],
           env: { DATABASE_URL: integrationDatabaseUrl() },
         },
       },

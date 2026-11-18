@@ -115,9 +115,9 @@ Viết test **trước**, trong `tests/unit/`:
 
 ## Phase 3 — Integration test cho service (DB test thật)
 
-- [ ] *[TL]* `tests/integration/global-setup.ts` (khai báo ở `globalSetup`): chạy `prisma migrate reset --force --skip-seed` trên `TEST_DATABASE_URL`.
-- [ ] *[TL]* `tests/integration/setup.ts` (khai báo ở `setupFiles`): `beforeEach` chạy `TRUNCATE orders`; `afterAll` `$disconnect`.
-- [ ] Test case (mỗi case một `it`, tên tiếng Việt mô tả hành vi):
+- [x] *[TL]* `tests/integration/global-setup.ts` (khai báo ở `globalSetup`): ~~chạy `prisma migrate reset --force --skip-seed`~~ → *[phát sinh khi làm]* chạy `prisma migrate deploy` trên `TEST_DATABASE_URL`. Prisma 6 chặn `migrate reset` khi được gọi bởi AI agent (đòi xác nhận của người dùng mỗi lần). `deploy` không phá dữ liệu, idempotent; cô lập dữ liệu giữa các test đã do `TRUNCATE` trong `beforeEach` đảm bảo.
+- [x] *[TL]* `tests/integration/setup.ts` (khai báo ở `setupFiles`): `beforeEach` chạy `TRUNCATE orders`; `afterAll` `$disconnect`.
+- [x] Test case (mỗi case một `it`, tên tiếng Việt mô tả hành vi):
   1. Tạo đơn: `amount` = quantity × unitPrice; `amount` client gửi lên bị bỏ qua.
   2. Tạo đơn với `status: "DELIVERED"` → đơn vẫn là `NEW`.
   3. `quantity` / `unitPrice` = 0 hoặc âm → `ZodError`, DB không có bản ghi.
@@ -125,10 +125,10 @@ Viết test **trước**, trong `tests/unit/`:
   5. Từ `DELIVERED`/`CANCELLED` đổi sang bất kỳ → lỗi; status trong DB không đổi.
   6. Sửa đơn `DELIVERED` → `OrderLockedError`; dữ liệu không đổi.
   7. Sửa đơn `NEW` → `amount` được tính lại.
-  8. **Đồng thời:** `Promise.allSettled([changeStatus(id,"DELIVERED"), changeStatus(id,"CANCELLED")])` → đúng **1** fulfilled, 1 rejected; trạng thái cuối khớp với cái fulfilled.
+  8. **Đồng thời:** *(bên thua có thể nhận `ConflictError` — thua ở update có điều kiện — hoặc `OrderLockedError` — đọc sau khi bên thắng đã commit; cả hai đều đúng)* `Promise.allSettled([changeStatus(id,"DELIVERED"), changeStatus(id,"CANCELLED")])` → đúng **1** fulfilled, 1 rejected; trạng thái cuối khớp với cái fulfilled.
   9. Xóa đơn đã chốt → lỗi; xóa đơn `NEW` → thành công.
   10. Id không tồn tại → `NotFoundError` (get/update/changeStatus).
-- [ ] CHECK constraint: insert trực tiếp bằng Prisma với `quantity: 0` → Postgres báo lỗi (chứng minh lớp phòng thủ thứ hai).
+- [x] CHECK constraint: insert trực tiếp bằng Prisma với `quantity: 0` → Postgres báo lỗi (chứng minh lớp phòng thủ thứ hai).
 
 **Tiêu chí xong:** `npm run test:int` xanh, chạy 3 lần liên tiếp vẫn xanh (không flaky).
 
