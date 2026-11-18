@@ -78,7 +78,7 @@ Plan **được duyệt** với các điều chỉnh sau (đã sửa trực ti�
 
 Viết test **trước**, trong `tests/unit/`:
 
-- [ ] `lib/orders/transitions.ts`
+- [x] `lib/orders/transitions.ts`
   ```ts
   export const TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
     NEW: ["DELIVERED", "CANCELLED"],
@@ -88,22 +88,26 @@ Viết test **trước**, trong `tests/unit/`:
   export function canTransition(from: OrderStatus, to: OrderStatus): boolean
   ```
   Test: bảng đầy đủ 3×3 cặp (from, to), chỉ 2 cặp hợp lệ; `NEW → NEW` không hợp lệ.
-- [ ] `lib/orders/errors.ts`: `DomainError` (base) → `NotFoundError`, `ConflictError`, `InvalidTransitionError`, `OrderLockedError`. Message tiếng Việt.
-- [ ] `lib/orders/schema.ts`:
+- [x] `lib/orders/errors.ts`: `DomainError` (base) → `NotFoundError`, `ConflictError`, `InvalidTransitionError`, `OrderLockedError`. Message tiếng Việt.
+- [x] `lib/orders/schema.ts`:
   - `orderInputSchema`: `customerName`, `productName` (trim, 1–200 ký tự); `quantity` (số nguyên > 0, nhận cả string từ form); `unitPrice` (nhận string|number → chuẩn hóa thành string → regex `^\d+(\.\d{1,2})?$` → > 0).
   - Field lạ (`amount`, `status`, …) bị strip.
   - `statusChangeSchema`: `{ status: z.enum(["DELIVERED","CANCELLED"]) }`.
   - Test: 0, số âm, số thập phân cho quantity, chuỗi rỗng, quá 2 chữ số thập phân, input có `amount` → bị bỏ.
-- [ ] `lib/orders/money.ts` *[TL]*: `calcAmount(quantity: number, unitPrice: Prisma.Decimal): Prisma.Decimal` — test cả số lớn (vd 1 000 000 × 999 999 999.99) không mất chính xác.
-- [ ] `lib/orders/service.ts`:
+- [x] `lib/orders/money.ts` *[TL]*: `calcAmount(quantity: number, unitPrice: Prisma.Decimal): Prisma.Decimal` — test cả số lớn (vd 1 000 000 × 999 999 999.99) không mất chính xác.
+- [x] `lib/orders/service.ts`:
   - `createOrder(input: unknown)` — parse → tính amount → `status: "NEW"`.
   - `updateOrder(id, input: unknown)` — parse → `updateMany({ where: { id, status: "NEW" } })` → `count === 0` thì đọc lại: không có → `NotFoundError`; có nhưng khác NEW → `OrderLockedError`.
   - `changeStatus(id, to)` — đọc đơn → `canTransition` sai thì `InvalidTransitionError` (đơn đã chốt thì `OrderLockedError`) → `updateMany({ where: { id, status: current } })` → `count === 0` → `ConflictError`.
   - `getOrder(id)`, `listOrders({ status? })` (sắp xếp `createdAt desc`; *[TL]* `status` validate bằng Zod, giá trị lạ → `ZodError`).
   - `deleteOrder(id)` — chỉ xóa được khi NEW (`deleteMany` có điều kiện); *[TL]* `count === 0` → đọc lại: không có → `NotFoundError`, có → `OrderLockedError`.
   - Hàm `toOrderDTO(order)` chuyển Decimal → string, Date → ISO string.
-- [ ] *[TL — chuyển từ Phase 1]* `prisma/seed.ts`: ~15 đơn mẫu, trải trên 5–7 ngày gần nhất, đủ cả 3 trạng thái; có ít nhất 1 đơn tạo lúc 00:30 giờ VN (để demo timezone). Seed **ghi qua service** (`createOrder`, `changeStatus`) rồi chỉ chỉnh `createdAt` bằng update trực tiếp — ghi chú lý do trong comment. Seed xóa dữ liệu cũ trước khi tạo (chạy lại được nhiều lần).
-- [ ] *[TL]* `npm run db:setup` = `prisma migrate deploy && tsx prisma/seed.ts`.
+- [x] *[TL — chuyển từ Phase 1]* `prisma/seed.ts`: ~15 đơn mẫu, trải trên 5–7 ngày gần nhất, đủ cả 3 trạng thái; có ít nhất 1 đơn tạo lúc 00:30 giờ VN (để demo timezone). Seed **ghi qua service** (`createOrder`, `changeStatus`) rồi chỉ chỉnh `createdAt` bằng update trực tiếp — ghi chú lý do trong comment. Seed xóa dữ liệu cũ trước khi tạo (chạy lại được nhiều lần).
+- [x] *[TL]* `npm run db:setup` = `prisma migrate deploy && tsx prisma/seed.ts`.
+
+- [x] *[phát sinh khi làm]* `changeStatus(id, input)` nhận object `{ status }` (giống `createOrder(input: unknown)`): service tự parse bằng `statusChangeSchema`, route/Server Action chỉ chuyển body/form vào.
+- [x] *[phát sinh khi làm]* Giới hạn trên: `quantity` ≤ INT4 max, thành tiền ≤ `9999999999999999.99` (vừa `Decimal(18,2)`) — vượt thì 400 thay vì lỗi DB 500.
+- [x] *[phát sinh khi làm]* Zod 4 vẫn chạy các check sau khi một check fail → `regex` của đơn giá dùng `abort: true` để `refine` không gặp chuỗi không phải số.
 
 **Tiêu chí xong:** unit test xanh; service chưa cần test với DB (để Phase 3); `npm run db:setup` chạy được.
 

@@ -8,7 +8,7 @@
     "start": "next start",
     "postinstall": "prisma generate",
     "db:up": "docker compose up -d --wait",
-    "db:setup": "prisma migrate deploy",
+    "db:setup": "prisma migrate deploy && tsx prisma/seed.ts",
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
     "test:int": "vitest run --project integration",
