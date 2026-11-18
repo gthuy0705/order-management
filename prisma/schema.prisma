@@ -13,17 +13,81 @@ enum OrderStatus {
   CANCELLED
 }
 
-model Order {
-  id           String      @id @default(cuid())
-  customerName String      @map("customer_name")
-  productName  String      @map("product_name")
-  quantity     Int
-  unitPrice    Decimal     @map("unit_price") @db.Decimal(18, 2)
-  amount       Decimal     @db.Decimal(18, 2)
-  status       OrderStatus @default(NEW)
-  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt    DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+enum OrderEventType {
+  CREATED
+  UPDATED
+  STATUS_CHANGED
+  DELETED
+}
 
-  @@index([status, createdAt])
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  name         String
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  sessions Session[]
+  events   OrderEvent[]
+
+  @@map("users")
+}
+
+// The cookie holds a random token; only its SHA-256 is stored, so a leaked
+// database dump cannot be replayed as a login.
+model Session {
+  id        String   @id // sha256(token), hex
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Order {
+  id             String      @id @default(cuid())
+  customerName   String      @map("customer_name")
+  productName    String      @map("product_name")
+  quantity       Int
+  unitPrice      Decimal     @map("unit_price") @db.Decimal(18, 2)
+  amount         Decimal     @db.Decimal(18, 2)
+  status         OrderStatus @default(NEW)
+  // Bumped on every write; a client must send back the version it saw, so an
+  // edit made on stale data is refused instead of silently overwriting.
+  version        Int         @default(1)
+  // Soft delete: the row (and its audit trail) stays, it is only hidden.
+  deletedAt      DateTime?   @map("deleted_at") @db.Timestamptz(3)
+  // Set by POST /api/orders when the client sends an Idempotency-Key header.
+  idempotencyKey String?     @unique @map("idempotency_key")
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  events OrderEvent[]
+
+  // Keyset pagination orders by (created_at, id), with or without a status filter.
+  @@index([status, createdAt, id])
+  @@index([createdAt, id])
   @@map("orders")
+}
+
+// Append-only audit trail, written in the same transaction as the change.
+model OrderEvent {
+  id         String         @id @default(cuid())
+  orderId    String         @map("order_id")
+  type       OrderEventType
+  fromStatus OrderStatus?   @map("from_status")
+  toStatus   OrderStatus?   @map("to_status")
+  // CREATED: snapshot of the fields; UPDATED: { field: { from, to } }.
+  changes    Json?
+  actorId    String         @map("actor_id")
+  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  actor User  @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([orderId, createdAt])
+  @@map("order_events")
 }

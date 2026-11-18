@@ -43,13 +43,16 @@ export async function revenueByDay(input: unknown): Promise<RevenueReport> {
   const toUtcExclusive = vnDayStartUtc(addDays(to, 1));
 
   // SUM is cast to text so the exact decimal value never passes through a JS
-  // number. Days without delivered orders produce no row.
+  // number. Days without delivered orders produce no row. Only NEW orders can
+  // be deleted, so deleted_at never hides a DELIVERED one today; the filter
+  // keeps that true if the rule ever changes.
   const rows = await prisma.$queryRaw<RevenueRow[]>`
     SELECT to_char((created_at AT TIME ZONE 'Asia/Ho_Chi_Minh')::date, 'YYYY-MM-DD') AS day,
            COUNT(*)::int     AS orders,
            SUM(amount)::text AS revenue
     FROM orders
     WHERE status = 'DELIVERED'
+      AND deleted_at IS NULL
       AND created_at >= ${fromUtc} AND created_at < ${toUtcExclusive}
     GROUP BY 1
     ORDER BY 1

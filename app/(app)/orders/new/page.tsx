@@ -14,7 +14,7 @@ export default function NewOrderPage() {
         <p className="muted">Đơn mới luôn ở trạng thái Mới; thành tiền do server tính.</p>
       </div>
       <div className="panel panel--pad panel--narrow">
-        <OrderForm action={createOrderAction} initialValues={EMPTY} submitLabel="Tạo đơn" />
+        <OrderForm action={createOrderAction} initialValues={EMPTY} submitLabel="Tạo đơn" idempotent />
       </div>
     </>
   );

@@ -854,10 +854,127 @@ dl.details .total {
   margin-top: var(--s-3);
 }
 
+/* -------------------------------------------------- header end, user menu */
+
+.site-header__end {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  min-width: 0;
+}
+
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding-left: var(--s-5);
+  border-left: 1px solid var(--line);
+}
+
+.user-menu__name {
+  max-width: 16ch;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--t-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 719px) {
+  .user-menu {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .user-menu__name {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------------ login */
+
+.login {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  padding-block: var(--s-6);
+}
+
+.login__card {
+  display: grid;
+  gap: var(--s-5);
+  width: min(100%, 420px);
+}
+
+.login__card h1 {
+  margin: 0;
+  font-size: var(--t-h2);
+  font-weight: 500;
+}
+
+/* ---------------------------------------------------------------- history */
+
+.timeline {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.timeline__item {
+  position: relative;
+  padding: 0 0 var(--s-4) var(--s-5);
+  border-left: 1px solid var(--line-strong);
+}
+
+.timeline__item:last-child {
+  padding-bottom: 0;
+  border-left-color: transparent;
+}
+
+/* The dot sits on the line, centred on the first text line. */
+.timeline__item::before {
+  position: absolute;
+  top: 7px;
+  left: -5px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--action);
+  content: "";
+}
+
+.timeline__title {
+  margin: 0;
+  font-weight: 500;
+}
+
+.timeline__details {
+  margin: var(--s-1) 0 0;
+  padding-left: var(--s-4);
+  font-size: var(--t-small);
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline__meta {
+  margin: var(--s-1) 0 0;
+  font-size: var(--t-label);
+}
+
+/* ------------------------------------------------------------- pagination */
+
+.pager {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-3);
+  margin-top: var(--s-4);
+}
+
 /* The narrowest phones (320): tighter gaps so the header and filters keep one
    line. Last in the file so it overrides the rules above at equal specificity. */
 @media (max-width: 399px) {
   .site-header__inner,
+  .site-header__end,
   .site-nav {
     gap: var(--s-3);
   }

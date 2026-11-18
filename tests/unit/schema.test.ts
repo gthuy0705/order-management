@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
+  decodeCursor,
+  encodeCursor,
+  idempotencyKeySchema,
   listFilterSchema,
   orderInputSchema,
+  orderUpdateSchema,
   statusChangeSchema,
 } from "@/lib/orders/schema";
 
@@ -86,12 +90,72 @@ describe("statusChangeSchema", () => {
   });
 });
 
-describe("listFilterSchema", () => {
-  it("status không bắt buộc", () => {
-    expect(listFilterSchema.parse({})).toEqual({});
+describe("orderUpdateSchema", () => {
+  it("bắt buộc version, nhận cả string từ form", () => {
+    expect(orderUpdateSchema.parse({ ...valid, version: "3" }).version).toBe(3);
+    expect(orderUpdateSchema.safeParse(valid).success).toBe(false);
   });
 
-  it("từ chối status lạ", () => {
-    expect(listFilterSchema.safeParse({ status: "FOO" }).success).toBe(false);
+  it.each([0, -1, 1.5, "abc"])("từ chối version = %j", (version) => {
+    expect(orderUpdateSchema.safeParse({ ...valid, version }).success).toBe(false);
+  });
+
+  it("vẫn kiểm tra giới hạn thành tiền như khi tạo", () => {
+    const result = orderUpdateSchema.safeParse({
+      ...valid,
+      quantity: 10,
+      unitPrice: "1000000000000000",
+      version: 1,
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("listFilterSchema", () => {
+  it("mặc định 20 dòng mỗi trang, status và cursor không bắt buộc", () => {
+    expect(listFilterSchema.parse({})).toEqual({ limit: 20 });
+  });
+
+  it("nhận limit dạng string từ query", () => {
+    expect(listFilterSchema.parse({ limit: "50" }).limit).toBe(50);
+  });
+
+  it.each([{ status: "FOO" }, { limit: 0 }, { limit: 101 }, { limit: "x" }, { cursor: "rác" }])(
+    "từ chối %j",
+    (filter) => {
+      expect(listFilterSchema.safeParse(filter).success).toBe(false);
+    },
+  );
+
+  it("giải mã cursor hợp lệ", () => {
+    const cursor = encodeCursor({ createdAt: new Date("2026-11-18T03:00:00.000Z"), id: "abc" });
+    expect(listFilterSchema.parse({ cursor }).cursor).toEqual({
+      createdAt: new Date("2026-11-18T03:00:00.000Z"),
+      id: "abc",
+    });
+  });
+});
+
+describe("cursor", () => {
+  it("encode → decode giữ nguyên giá trị", () => {
+    const value = { createdAt: new Date("2026-01-02T03:04:05.678Z"), id: "cm123" };
+    expect(decodeCursor(encodeCursor(value))).toEqual(value);
+  });
+
+  it.each(["", "abc", Buffer.from("not-a-date|id").toString("base64url"), Buffer.from("2026-01-01T00:00:00.000Z|").toString("base64url")])(
+    "trả null với %j",
+    (value) => {
+      expect(decodeCursor(value)).toBeNull();
+    },
+  );
+});
+
+describe("idempotencyKeySchema", () => {
+  it.each(["", "short", "x".repeat(101)])("từ chối %j", (key) => {
+    expect(idempotencyKeySchema.safeParse(key).success).toBe(false);
+  });
+
+  it("chấp nhận UUID", () => {
+    expect(idempotencyKeySchema.parse("3f2c6a40-6f0e-4b1a-9a53-2a1f0e4b8c11")).toHaveLength(36);
   });
 });

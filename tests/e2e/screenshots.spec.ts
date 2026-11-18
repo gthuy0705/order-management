@@ -8,12 +8,23 @@ const DIR = "docs/screenshots";
 
 test.beforeAll(() => {
   execSync("npx tsx prisma/seed.ts", {
-    env: { ...process.env, DATABASE_URL: process.env.TEST_DATABASE_URL },
+    env: { ...process.env, DATABASE_URL: process.env.E2E_DATABASE_URL },
     stdio: "inherit",
   });
 });
 
-test("chụp ảnh màn hình", async ({ page }) => {
+test("chụp ảnh màn hình", async ({ page, browser }) => {
+  // The login page, from a fresh (logged-out) browser context.
+  const guest = await browser.newContext({
+    ...test.info().project.use,
+    storageState: { cookies: [], origins: [] },
+  });
+  const loginPage = await guest.newPage();
+  await loginPage.goto("/login");
+  await expect(loginPage.getByRole("button", { name: "Đăng nhập" })).toBeVisible();
+  await loginPage.screenshot({ path: `${DIR}/00-dang-nhap.png`, fullPage: true });
+  await guest.close();
+
   await page.goto("/orders");
   await expect(page.locator("tbody tr").first()).toBeVisible();
   await page.screenshot({ path: `${DIR}/01-danh-sach.png`, fullPage: true });

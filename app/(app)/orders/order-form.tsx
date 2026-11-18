@@ -1,18 +1,57 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useCallback, useRef, useState } from "react";
 import { formatMoney } from "@/lib/format";
 import type { ActionState, OrderFormValues } from "./actions";
 
+type Action = (prev: ActionState, formData: FormData) => Promise<ActionState>;
+
 type Props = {
-  action: (prev: ActionState, formData: FormData) => Promise<ActionState>;
+  action: Action;
   initialValues: OrderFormValues;
   submitLabel: string;
   successMessage?: string;
+  /** Version of the order being edited; sent back for optimistic locking. */
+  version?: number;
+  /** Attach an idempotency key so a retried submit cannot create a duplicate. */
+  idempotent?: boolean;
 };
 
-export function OrderForm({ action, initialValues, submitLabel, successMessage }: Props) {
-  const [state, formAction, pending] = useActionState(action, { attempt: 0 });
+// 128 random bits as hex. getRandomValues also works on plain-http origins,
+// where crypto.randomUUID is unavailable.
+function randomKey(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// One key per mounted form, created on the first submit (never during render,
+// so it is not baked into server HTML shared by every visitor). Re-submitting
+// after an error or a lost response reuses it; leaving the page and coming
+// back mounts a new form with a new key.
+function useIdempotentAction(action: Action, enabled: boolean): Action {
+  const key = useRef<string | null>(null);
+  return useCallback(
+    (prev: ActionState, formData: FormData) => {
+      if (enabled) {
+        key.current ??= randomKey();
+        formData.set("idempotencyKey", key.current);
+      }
+      return action(prev, formData);
+    },
+    [action, enabled],
+  );
+}
+
+export function OrderForm({
+  action,
+  initialValues,
+  submitLabel,
+  successMessage,
+  version,
+  idempotent = false,
+}: Props) {
+  const idempotentAction = useIdempotentAction(action, idempotent);
+  const [state, formAction, pending] = useActionState(idempotentAction, { attempt: 0 });
   const succeeded = state.attempt > 0 && !state.error;
 
   return (
@@ -23,6 +62,7 @@ export function OrderForm({ action, initialValues, submitLabel, successMessage }
         </p>
       )}
       {succeeded && successMessage && <p className="notice">{successMessage}</p>}
+      {version !== undefined && <input type="hidden" name="version" value={version} />}
       {/* Remount after each submit so the fields show what the server echoed
           back (typed values on error, saved values on success). */}
       <OrderFields
