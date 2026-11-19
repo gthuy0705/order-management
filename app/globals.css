@@ -854,6 +854,64 @@ dl.details .total {
   margin-top: var(--s-3);
 }
 
+/* ---------------------------------------------------------------- history */
+
+.timeline {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.timeline__item {
+  position: relative;
+  padding: 0 0 var(--s-4) var(--s-5);
+  border-left: 1px solid var(--line-strong);
+}
+
+.timeline__item:last-child {
+  padding-bottom: 0;
+  border-left-color: transparent;
+}
+
+/* The dot sits on the line, centred on the first text line. */
+.timeline__item::before {
+  position: absolute;
+  top: 7px;
+  left: -5px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--action);
+  content: "";
+}
+
+.timeline__title {
+  margin: 0;
+  font-weight: 500;
+}
+
+.timeline__details {
+  margin: var(--s-1) 0 0;
+  padding-left: var(--s-4);
+  font-size: var(--t-small);
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline__meta {
+  margin: var(--s-1) 0 0;
+  font-size: var(--t-label);
+}
+
+/* ------------------------------------------------------------- pagination */
+
+.pager {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-3);
+  margin-top: var(--s-4);
+}
+
 /* The narrowest phones (320): tighter gaps so the header and filters keep one
    line. Last in the file so it overrides the rules above at equal specificity. */
 @media (max-width: 399px) {

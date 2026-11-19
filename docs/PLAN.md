@@ -257,3 +257,34 @@ Không dùng UI library; một file `app/globals.css` nhỏ (bảng, form, badge
 - [x] *[phát sinh khi làm]* `npm audit`: 3 lỗi "high" ở `deepmerge-ts` (phụ thuộc của CLI `prisma` 6.x, chỉ dùng khi đọc config cục bộ). Bản sửa yêu cầu Prisma 7 — trái ghi chú TL #1 → **giữ nguyên, chờ người dùng quyết định**.
 
 **Tiêu chí xong:** người khác chỉ đọc README là chạy được.
+
+---
+
+## Phase 9 — Hardening sau review của tech lead (2026-11-19)
+
+Ngoài đề gốc: người dùng **yêu cầu rõ** làm toàn bộ mục P1 + P2 trong review. Làm trên nhánh `feat/production-hardening` (PR vào `main`).
+
+**P1 — lỗi thật / rủi ro mất dữ liệu**
+
+- [x] Optimistic locking: cột `version`; `PATCH` bắt buộc `version`, status/xóa tùy chọn; ghi trong transaction + update có điều kiện `(id, status, version)` → 409. Test đồng thời cho sửa–sửa.
+- [x] Seed guard: chỉ chạy trên DB đuôi `_dev`/`_test`/`_e2e` hoặc `ALLOW_SEED=1` (`prisma/seed-guard.ts`, có unit test).
+- [x] CI: thêm `npm run build`, job e2e Playwright riêng (upload `test-results/` khi fail), `concurrency` hủy run cũ.
+- [x] Commit riêng phần UI đang treo (`feat(ui)`), sửa indent `order-actions.tsx`, e2e xanh trước khi commit. Ghi chú: `globals.css` không còn "nhỏ" như Phase 6 (~1000 dòng, một hệ token) — chấp nhận vì không thêm framework/dependency.
+- [x] `npm audit`: chấp nhận rủi ro có thời hạn (README "Rủi ro đã chấp nhận", `.github/audit-allowlist.txt`); CI chặn mọi advisory high/critical khác (`.github/scripts/audit.mjs`).
+
+**P2 — trước khi dùng thật**
+
+- [x] Audit trail `order_events` (CREATED/UPDATED/STATUS_CHANGED/DELETED, diff from→to), ghi cùng transaction; trigger Postgres chặn UPDATE/DELETE; hiển thị "Lịch sử thay đổi" ở trang chi tiết + `GET /api/orders/:id/history`.
+- [x] Xóa mềm (`deleted_at`): mọi truy vấn đọc lọc bỏ; báo cáo cũng lọc.
+- [x] `Idempotency-Key` cho `POST /api/orders` (cột UNIQUE, xử lý race bằng P2002); form tạo đơn tự gửi key theo từng lần mount.
+- [x] Phân trang keyset `(created_at, id)`; API trả `{ items, nextCursor }` (**đổi shape** so với Phase 5 — ghi trong README); UI có "Trang sau / Trang đầu".
+- [x] ~~Đăng nhập (scrypt + phiên DB, `/login`, `requireUser`/`requireApiUser`)~~ → **gỡ bỏ theo yêu cầu người dùng ("không cần đăng nhập")**: migration mới `20261120000000_remove_auth` xóa bảng `users`, `sessions` và cột `order_events.actor_id` (không sửa migration cũ). Lịch sử thay đổi giữ nguyên nhưng không còn ghi người thực hiện; `proxy.ts` chỉ còn gắn request id; trang về lại `app/` (bỏ route group). README ghi rủi ro "không có xác thực".
+- [x] Observability: `lib/log.ts` (JSON một dòng), `x-request-id` qua `proxy.ts`, `requestId` trong lỗi 500, `onRequestError` trong `instrumentation.ts`, `error.digest` trên trang lỗi, `/api/health` (503 khi mất DB).
+- [x] Kiểm tra env khi khởi động (`lib/env.ts` gọi từ `instrumentation.register`) — đã thử: `DATABASE_URL` sai thì server dừng với thông báo rõ.
+- [x] Tách DB e2e `orders_e2e` (`E2E_DATABASE_URL`); `migrate deploy` tự tạo DB nên volume Docker cũ không cần reset.
+
+- [x] *[phát sinh khi làm]* Next.js render sẵn một `role="alert"` rỗng (route announcer) → e2e dùng `p.alert` thay cho `getByRole("alert")`.
+- [x] *[phát sinh khi làm]* Form tạo đơn bọc action phía client để gắn idempotency key → form tạo đơn cần JavaScript (không còn progressive enhancement cho riêng form này).
+- [x] *[ghi chú quy trình]* Phase này viết code service trước rồi test ngay sau (không đi đúng "đỏ trước" của quy trình TDD); mọi hành vi mới đều có test.
+
+**Tiêu chí xong:** `npm run check` xanh (chạy 3 lần), `npm run e2e` xanh, ảnh chụp cập nhật, README/CLAUDE.md khớp code.

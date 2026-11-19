@@ -11,6 +11,6 @@ export async function GET(request: Request) {
     });
     return json(report);
   } catch (error) {
-    return handleError(error);
+    return handleError(error, request);
   }
 }

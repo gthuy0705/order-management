@@ -7,10 +7,16 @@ if (existsSync(".env")) {
   process.loadEnvFile(".env");
 }
 
-// E2E tests create orders, so they run against the test database, never dev.
-const testDatabaseUrl = process.env.TEST_DATABASE_URL;
-if (!testDatabaseUrl || testDatabaseUrl === process.env.DATABASE_URL) {
-  throw new Error("TEST_DATABASE_URL phải được đặt và khác DATABASE_URL.");
+// E2E tests create orders through a real server, so they get their own
+// database: never dev data, and never the one integration tests TRUNCATE
+// (running `npm test` and `npm run e2e` side by side must be safe).
+const e2eDatabaseUrl = process.env.E2E_DATABASE_URL;
+if (
+  !e2eDatabaseUrl ||
+  e2eDatabaseUrl === process.env.DATABASE_URL ||
+  e2eDatabaseUrl === process.env.TEST_DATABASE_URL
+) {
+  throw new Error("E2E_DATABASE_URL phải được đặt và khác DATABASE_URL, TEST_DATABASE_URL.");
 }
 
 const PORT = 3200;
@@ -46,8 +52,9 @@ export default defineConfig({
     // A production build: closer to what users get and no dev overlay in
     // screenshots. Uses its own port so it can run next to `npm run dev`.
     command: `npm run build && npm run start -- --port ${PORT}`,
-    url: `http://localhost:${PORT}/orders/new`,
-    env: { DATABASE_URL: testDatabaseUrl },
+    // /api/health answers 200 only once the DB is reachable.
+    url: `http://localhost:${PORT}/api/health`,
+    env: { DATABASE_URL: e2eDatabaseUrl },
     reuseExistingServer: !process.env.CI,
     timeout: 240_000,
   },

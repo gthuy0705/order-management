@@ -8,7 +8,7 @@ const DIR = "docs/screenshots";
 
 test.beforeAll(() => {
   execSync("npx tsx prisma/seed.ts", {
-    env: { ...process.env, DATABASE_URL: process.env.TEST_DATABASE_URL },
+    env: { ...process.env, DATABASE_URL: process.env.E2E_DATABASE_URL },
     stdio: "inherit",
   });
 });

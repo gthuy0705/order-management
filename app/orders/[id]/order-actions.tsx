@@ -3,9 +3,13 @@
 import { useActionState, type MouseEvent } from "react";
 import type { ActionState } from "../actions";
 
+type Action = (prev: ActionState, formData: FormData) => Promise<ActionState>;
+
 type Props = {
-  changeStatus: (prev: ActionState, formData: FormData) => Promise<ActionState>;
-  remove: (prev: ActionState) => Promise<ActionState>;
+  changeStatus: Action;
+  remove: Action;
+  /** The version shown on screen: acting on a stale page is refused (409). */
+  version: number;
 };
 
 function confirmOrCancel(message: string) {
@@ -14,7 +18,7 @@ function confirmOrCancel(message: string) {
   };
 }
 
-export function OrderActions({ changeStatus, remove }: Props) {
+export function OrderActions({ changeStatus, remove, version }: Props) {
   const [statusState, statusAction, statusPending] = useActionState(changeStatus, { attempt: 0 });
   const [deleteState, deleteAction, deletePending] = useActionState(remove, { attempt: 0 });
   const pending = statusPending || deletePending;
@@ -28,11 +32,13 @@ export function OrderActions({ changeStatus, remove }: Props) {
         </p>
       )}
       <form action={statusAction}>
+        <input type="hidden" name="version" value={version} />
         <button type="submit" name="status" value="DELIVERED" className="btn btn--secondary" disabled={pending}>
           Đánh dấu đã giao
         </button>
       </form>
       <form action={statusAction}>
+        <input type="hidden" name="version" value={version} />
         <button
           type="submit"
           name="status"
@@ -45,11 +51,12 @@ export function OrderActions({ changeStatus, remove }: Props) {
         </button>
       </form>
       <form action={deleteAction}>
+        <input type="hidden" name="version" value={version} />
         <button
           type="submit"
           className="btn btn--danger"
           disabled={pending}
-          onClick={confirmOrCancel("Xóa vĩnh viễn đơn này?")}
+          onClick={confirmOrCancel("Xóa đơn này? Đơn sẽ bị ẩn khỏi danh sách (lịch sử vẫn được lưu).")}
         >
           Xóa
         </button>

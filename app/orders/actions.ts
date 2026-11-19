@@ -39,21 +39,27 @@ function readOrderForm(formData: FormData): OrderFormValues {
   };
 }
 
+// "" → undefined so an absent field is "not sent", not "invalid".
+function readOptional(formData: FormData, name: string): string | undefined {
+  return readText(formData, name) || undefined;
+}
+
 function failure(prev: ActionState, error: unknown, values?: OrderFormValues): ActionState {
   const attempt = prev.attempt + 1;
   if (error instanceof ZodError) {
     const { formErrors, fieldErrors } = z.flattenError(error);
+    const extra = (fieldErrors as Record<string, string[] | undefined>).version;
     return {
       attempt,
       values,
-      error: formErrors[0] ?? "Vui lòng kiểm tra lại các trường bị lỗi.",
+      error: formErrors[0] ?? extra?.[0] ?? "Vui lòng kiểm tra lại các trường bị lỗi.",
       fieldErrors,
     };
   }
   if (error instanceof DomainError) {
     return { attempt, values, error: error.message };
   }
-  // Unexpected errors go to app/error.tsx.
+  // Unexpected errors go to app/error.tsx (and are logged by instrumentation.ts).
   throw error;
 }
 
@@ -69,7 +75,10 @@ export async function createOrderAction(
   const values = readOrderForm(formData);
   let id: string;
   try {
-    id = (await createOrder(values)).id;
+    const { order } = await createOrder(values, {
+      idempotencyKey: readOptional(formData, "idempotencyKey"),
+    });
+    id = order.id;
   } catch (error) {
     return failure(prev, error, values);
   }
@@ -85,7 +94,7 @@ export async function updateOrderAction(
 ): Promise<ActionState> {
   const values = readOrderForm(formData);
   try {
-    await updateOrder(id, values);
+    await updateOrder(id, { ...values, version: readText(formData, "version") });
   } catch (error) {
     return failure(prev, error, values);
   }
@@ -99,7 +108,10 @@ export async function changeStatusAction(
   formData: FormData,
 ): Promise<ActionState> {
   try {
-    await changeStatus(id, { status: formData.get("status") });
+    await changeStatus(id, {
+      status: formData.get("status"),
+      version: readOptional(formData, "version"),
+    });
   } catch (error) {
     return failure(prev, error);
   }
@@ -107,9 +119,13 @@ export async function changeStatusAction(
   return { attempt: prev.attempt + 1 };
 }
 
-export async function deleteOrderAction(id: string, prev: ActionState): Promise<ActionState> {
+export async function deleteOrderAction(
+  id: string,
+  prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   try {
-    await deleteOrder(id);
+    await deleteOrder(id, { version: readOptional(formData, "version") });
   } catch (error) {
     return failure(prev, error);
   }

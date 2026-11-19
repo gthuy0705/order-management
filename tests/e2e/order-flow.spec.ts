@@ -75,3 +75,35 @@ test("hủy đơn cần xác nhận", async ({ page }) => {
   await page.getByRole("button", { name: "Hủy đơn" }).click();
   await expect(page.locator(".badge")).toHaveText("Đã hủy");
 });
+
+test("hai tab cùng sửa một đơn: tab lưu sau bị chặn, không ghi đè; lịch sử ghi lại thay đổi", async ({
+  page,
+  context,
+}) => {
+  await createOrderViaUi(page, {
+    customerName: "Khách xung đột",
+    productName: "Hàng xung đột",
+    quantity: "1",
+    unitPrice: "1000",
+  });
+  const other = await context.newPage();
+  await other.goto(page.url());
+
+  // Tab 1 saves first.
+  await page.getByLabel("Số lượng").fill("2");
+  await page.getByRole("button", { name: "Lưu thay đổi" }).click();
+  await expect(page.getByText("Đã lưu thay đổi.")).toBeVisible();
+
+  // Tab 2 still shows version 1: its save must be refused, not overwrite.
+  await other.getByLabel("Số lượng").fill("9");
+  await other.getByRole("button", { name: "Lưu thay đổi" }).click();
+  await expect(other.locator("p.alert")).toHaveText(
+    "Đơn vừa được cập nhật ở nơi khác, hãy tải lại trang.",
+  );
+
+  await page.reload();
+  await expect(page.getByLabel("Số lượng")).toHaveValue("2");
+  const history = page.getByRole("region", { name: "Lịch sử thay đổi" });
+  await expect(history.getByText("Sửa đơn")).toBeVisible();
+  await expect(history.getByText("Số lượng: 1 → 2")).toBeVisible();
+});

@@ -9,7 +9,7 @@ type Status = "NEW" | "DELIVERED" | "CANCELLED";
 // Creates an order through the service, then back-dates it. createdAt is
 // server-controlled, so tests must set it directly to place orders on a day.
 async function orderAt(createdAt: string, unitPrice: string, status: Status = "DELIVERED") {
-  const order = await createOrder({
+  const { order } = await createOrder({
     customerName: "Khách",
     productName: "Hàng",
     quantity: 1,
@@ -17,6 +17,7 @@ async function orderAt(createdAt: string, unitPrice: string, status: Status = "D
   });
   if (status !== "NEW") await changeStatus(order.id, { status });
   await prisma.order.update({ where: { id: order.id }, data: { createdAt: new Date(createdAt) } });
+  return order;
 }
 
 describe("revenueByDay", () => {
@@ -73,6 +74,17 @@ describe("revenueByDay", () => {
       { day: "2026-11-17", orders: 1, revenue: "999999999999.99" },
     ]);
     expect(report.total).toEqual({ orders: 3, revenue: "1000000000000.29" });
+  });
+
+  it("bỏ qua đơn đã bị xóa mềm", async () => {
+    await orderAt("2026-11-18T03:00:00Z", "100");
+    const hidden = await orderAt("2026-11-18T04:00:00Z", "200");
+    // The service never deletes a DELIVERED order; set the flag directly to
+    // prove the report would still exclude it.
+    await prisma.order.update({ where: { id: hidden.id }, data: { deletedAt: new Date() } });
+
+    const report = await revenueByDay({ from: "2026-11-18", to: "2026-11-18" });
+    expect(report.total).toEqual({ orders: 1, revenue: "100.00" });
   });
 
   it("không có đơn: không có dòng, tổng bằng 0", async () => {
