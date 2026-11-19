@@ -262,7 +262,7 @@ Không dùng UI library; một file `app/globals.css` nhỏ (bảng, form, badge
 
 ## Phase 9 — Hardening sau review của tech lead (2026-11-19)
 
-Ngoài đề gốc: người dùng **yêu cầu rõ** làm toàn bộ mục P1 + P2 trong review. Làm trên nhánh `phase-9-hardening`.
+Ngoài đề gốc: người dùng **yêu cầu rõ** làm toàn bộ mục P1 + P2 trong review. Làm trên nhánh `feat/production-hardening` (PR vào `main`).
 
 **P1 — lỗi thật / rủi ro mất dữ liệu**
 
