@@ -3,7 +3,6 @@ import Form from "next/form";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { z, ZodError } from "zod";
-import { requireUser } from "@/lib/auth/current-user";
 import { formatDay, formatMoney } from "@/lib/format";
 import { revenueByDay, type RevenueReport } from "@/lib/reports/revenue";
 
@@ -45,7 +44,6 @@ export default function RevenuePage({ searchParams }: PageProps<"/reports/revenu
 async function RevenueContent({
   searchParams,
 }: Pick<PageProps<"/reports/revenue">, "searchParams">) {
-  await requireUser();
   const params = await searchParams;
   // The default range depends on today's date, which must be read per request,
   // never baked into a prerendered shell.

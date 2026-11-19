@@ -20,33 +20,6 @@ enum OrderEventType {
   DELETED
 }
 
-model User {
-  id           String   @id @default(cuid())
-  username     String   @unique
-  name         String
-  passwordHash String   @map("password_hash")
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-
-  sessions Session[]
-  events   OrderEvent[]
-
-  @@map("users")
-}
-
-// The cookie holds a random token; only its SHA-256 is stored, so a leaked
-// database dump cannot be replayed as a login.
-model Session {
-  id        String   @id // sha256(token), hex
-  userId    String   @map("user_id")
-  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@map("sessions")
-}
-
 model Order {
   id             String      @id @default(cuid())
   customerName   String      @map("customer_name")
@@ -82,11 +55,9 @@ model OrderEvent {
   toStatus   OrderStatus?   @map("to_status")
   // CREATED: snapshot of the fields; UPDATED: { field: { from, to } }.
   changes    Json?
-  actorId    String         @map("actor_id")
   createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
-  actor User  @relation(fields: [actorId], references: [id], onDelete: Restrict)
 
   @@index([orderId, createdAt])
   @@map("order_events")

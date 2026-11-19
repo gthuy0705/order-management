@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { ZodError } from "zod";
-import { requireUser } from "@/lib/auth/current-user";
 import { formatMoney, formatVnDateTime } from "@/lib/format";
 import { STATUS_LABELS } from "@/lib/orders/labels";
 import { listOrders, type OrderDTO, type OrderPage } from "@/lib/orders/service";
@@ -56,7 +55,6 @@ export default function OrdersPage({ searchParams }: PageProps<"/orders">) {
 }
 
 async function OrdersContent({ searchParams }: Pick<PageProps<"/orders">, "searchParams">) {
-  await requireUser();
   const params = await searchParams;
   const current = firstValue(params.status);
   const cursor = firstValue(params.cursor);

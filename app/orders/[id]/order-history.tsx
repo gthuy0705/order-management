@@ -67,7 +67,7 @@ export function OrderHistory({ events }: { events: OrderEventDTO[] }) {
               </ul>
             )}
             <p className="timeline__meta muted">
-              {event.actor.name} · {formatVnDateTime(event.createdAt)}
+              {formatVnDateTime(event.createdAt)}
             </p>
           </li>
         );

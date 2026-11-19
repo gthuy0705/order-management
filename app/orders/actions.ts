@@ -3,14 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z, ZodError } from "zod";
-import { requireUser } from "@/lib/auth/current-user";
 import { DomainError } from "@/lib/orders/errors";
 import { changeStatus, createOrder, deleteOrder, updateOrder } from "@/lib/orders/service";
 
-// Thin layer like the route handlers: check the session → read the form →
-// call the service → turn expected errors into state the form can display.
-// Every action re-checks the session itself: Server Actions are public POST
-// endpoints, and proxy.ts alone is not an authorisation check.
+// Thin layer like the route handlers: read the form → call the service →
+// turn expected errors into state the form can display.
 
 export type OrderFormValues = {
   customerName: string;
@@ -75,11 +72,10 @@ export async function createOrderAction(
   prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const user = await requireUser();
   const values = readOrderForm(formData);
   let id: string;
   try {
-    const { order } = await createOrder(user, values, {
+    const { order } = await createOrder(values, {
       idempotencyKey: readOptional(formData, "idempotencyKey"),
     });
     id = order.id;
@@ -96,10 +92,9 @@ export async function updateOrderAction(
   prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const user = await requireUser();
   const values = readOrderForm(formData);
   try {
-    await updateOrder(user, id, { ...values, version: readText(formData, "version") });
+    await updateOrder(id, { ...values, version: readText(formData, "version") });
   } catch (error) {
     return failure(prev, error, values);
   }
@@ -112,9 +107,8 @@ export async function changeStatusAction(
   prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const user = await requireUser();
   try {
-    await changeStatus(user, id, {
+    await changeStatus(id, {
       status: formData.get("status"),
       version: readOptional(formData, "version"),
     });
@@ -130,9 +124,8 @@ export async function deleteOrderAction(
   prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const user = await requireUser();
   try {
-    await deleteOrder(user, id, { version: readOptional(formData, "version") });
+    await deleteOrder(id, { version: readOptional(formData, "version") });
   } catch (error) {
     return failure(prev, error);
   }

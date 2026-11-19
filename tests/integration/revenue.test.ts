@@ -1,29 +1,21 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { ZodError } from "zod";
-import type { SessionUser } from "@/lib/auth/users";
 import { prisma } from "@/lib/db";
 import { changeStatus, createOrder } from "@/lib/orders/service";
 import { revenueByDay } from "@/lib/reports/revenue";
-import { createTestUser } from "./helpers";
 
 type Status = "NEW" | "DELIVERED" | "CANCELLED";
-
-let actor: SessionUser;
-
-beforeEach(async () => {
-  actor = await createTestUser();
-});
 
 // Creates an order through the service, then back-dates it. createdAt is
 // server-controlled, so tests must set it directly to place orders on a day.
 async function orderAt(createdAt: string, unitPrice: string, status: Status = "DELIVERED") {
-  const { order } = await createOrder(actor, {
+  const { order } = await createOrder({
     customerName: "Khách",
     productName: "Hàng",
     quantity: 1,
     unitPrice,
   });
-  if (status !== "NEW") await changeStatus(actor, order.id, { status });
+  if (status !== "NEW") await changeStatus(order.id, { status });
   await prisma.order.update({ where: { id: order.id }, data: { createdAt: new Date(createdAt) } });
   return order;
 }

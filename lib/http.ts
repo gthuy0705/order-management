@@ -1,6 +1,5 @@
 import { unstable_rethrow } from "next/navigation";
 import { z, ZodError } from "zod";
-import { UnauthorizedError } from "@/lib/auth/errors";
 import { log, REQUEST_ID_HEADER } from "@/lib/log";
 import {
   ConflictError,
@@ -41,9 +40,6 @@ export function handleError(error: unknown, request?: Request): Response {
   // Next.js signals control flow (e.g. "stop prerendering, this route reads
   // request data") by throwing; those must reach Next, not become a 500.
   unstable_rethrow(error);
-  if (error instanceof UnauthorizedError) {
-    return json({ error: error.message }, 401, { "WWW-Authenticate": "Bearer" });
-  }
   if (error instanceof ZodError) {
     const { formErrors, fieldErrors } = z.flattenError(error);
     return json({ error: formErrors[0] ?? "Dữ liệu không hợp lệ.", fieldErrors }, 400);

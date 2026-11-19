@@ -274,11 +274,11 @@ Ngoài đề gốc: người dùng **yêu cầu rõ** làm toàn bộ mục P1 +
 
 **P2 — trước khi dùng thật**
 
-- [x] Audit trail `order_events` (CREATED/UPDATED/STATUS_CHANGED/DELETED, actor, diff from→to), ghi cùng transaction; trigger Postgres chặn UPDATE/DELETE; hiển thị "Lịch sử thay đổi" ở trang chi tiết + `GET /api/orders/:id/history`.
+- [x] Audit trail `order_events` (CREATED/UPDATED/STATUS_CHANGED/DELETED, diff from→to), ghi cùng transaction; trigger Postgres chặn UPDATE/DELETE; hiển thị "Lịch sử thay đổi" ở trang chi tiết + `GET /api/orders/:id/history`.
 - [x] Xóa mềm (`deleted_at`): mọi truy vấn đọc lọc bỏ; báo cáo cũng lọc.
 - [x] `Idempotency-Key` cho `POST /api/orders` (cột UNIQUE, xử lý race bằng P2002); form tạo đơn tự gửi key theo từng lần mount.
 - [x] Phân trang keyset `(created_at, id)`; API trả `{ items, nextCursor }` (**đổi shape** so với Phase 5 — ghi trong README); UI có "Trang sau / Trang đầu".
-- [x] Đăng nhập không thêm dependency: `scrypt` + phiên DB (lưu SHA-256 token), cookie HttpOnly/SameSite=Lax, Bearer cho API; `proxy.ts` chuyển hướng lạc quan, `requireUser`/`requireApiUser` ở mọi chỗ đọc/ghi. Trang `/login`, đăng xuất, `npm run user:create`. Route group `app/(app)` để `/login` không có nav. *Một vai trò* — phân quyền theo vai trò cần quy tắc nghiệp vụ, chưa làm.
+- [x] ~~Đăng nhập (scrypt + phiên DB, `/login`, `requireUser`/`requireApiUser`)~~ → **gỡ bỏ theo yêu cầu người dùng ("không cần đăng nhập")**: migration mới `20261120000000_remove_auth` xóa bảng `users`, `sessions` và cột `order_events.actor_id` (không sửa migration cũ). Lịch sử thay đổi giữ nguyên nhưng không còn ghi người thực hiện; `proxy.ts` chỉ còn gắn request id; trang về lại `app/` (bỏ route group). README ghi rủi ro "không có xác thực".
 - [x] Observability: `lib/log.ts` (JSON một dòng), `x-request-id` qua `proxy.ts`, `requestId` trong lỗi 500, `onRequestError` trong `instrumentation.ts`, `error.digest` trên trang lỗi, `/api/health` (503 khi mất DB).
 - [x] Kiểm tra env khi khởi động (`lib/env.ts` gọi từ `instrumentation.register`) — đã thử: `DATABASE_URL` sai thì server dừng với thông báo rõ.
 - [x] Tách DB e2e `orders_e2e` (`E2E_DATABASE_URL`); `migrate deploy` tự tạo DB nên volume Docker cũ không cần reset.

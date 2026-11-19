@@ -106,5 +106,4 @@ test("hai tab cùng sửa một đơn: tab lưu sau bị chặn, không ghi đè
   const history = page.getByRole("region", { name: "Lịch sử thay đổi" });
   await expect(history.getByText("Sửa đơn")).toBeVisible();
   await expect(history.getByText("Số lượng: 1 → 2")).toBeVisible();
-  await expect(history.getByText("Người dùng E2E").first()).toBeVisible();
 });

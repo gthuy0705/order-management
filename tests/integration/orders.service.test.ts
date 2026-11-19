@@ -1,6 +1,5 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { ZodError } from "zod";
-import type { SessionUser } from "@/lib/auth/users";
 import { prisma } from "@/lib/db";
 import { ConflictError, NotFoundError, OrderLockedError } from "@/lib/orders/errors";
 import {
@@ -13,7 +12,6 @@ import {
   updateOrder,
   type OrderDTO,
 } from "@/lib/orders/service";
-import { createTestUser } from "./helpers";
 
 const input = {
   customerName: "Nguyễn Văn A",
@@ -22,19 +20,13 @@ const input = {
   unitPrice: "12500.50",
 };
 
-let actor: SessionUser;
-
-beforeEach(async () => {
-  actor = await createTestUser();
-});
-
 async function create(extra: Record<string, unknown> = {}): Promise<OrderDTO> {
-  return (await createOrder(actor, { ...input, ...extra })).order;
+  return (await createOrder({ ...input, ...extra })).order;
 }
 
 async function createWithStatus(status: "DELIVERED" | "CANCELLED"): Promise<OrderDTO> {
   const order = await create();
-  return changeStatus(actor, order.id, { status });
+  return changeStatus(order.id, { status });
 }
 
 describe("createOrder", () => {
@@ -55,7 +47,7 @@ describe("createOrder", () => {
   it.each([{ quantity: 0 }, { quantity: -2 }, { unitPrice: "0" }, { unitPrice: "-1000" }])(
     "từ chối %j bằng ZodError và không ghi gì vào DB",
     async (override) => {
-      await expect(createOrder(actor, { ...input, ...override })).rejects.toBeInstanceOf(ZodError);
+      await expect(createOrder({ ...input, ...override })).rejects.toBeInstanceOf(ZodError);
       expect(await prisma.order.count()).toBe(0);
       expect(await prisma.orderEvent.count()).toBe(0);
     },
@@ -72,8 +64,8 @@ describe("createOrder với Idempotency-Key", () => {
   const key = "khoa-thu-lai-0001";
 
   it("gửi lại cùng key → trả đúng đơn cũ, không tạo đơn trùng", async () => {
-    const first = await createOrder(actor, input, { idempotencyKey: key });
-    const again = await createOrder(actor, input, { idempotencyKey: key });
+    const first = await createOrder(input, { idempotencyKey: key });
+    const again = await createOrder(input, { idempotencyKey: key });
 
     expect(first.replayed).toBe(false);
     expect(again.replayed).toBe(true);
@@ -83,8 +75,8 @@ describe("createOrder với Idempotency-Key", () => {
 
   it("hai request đồng thời cùng key → chỉ một đơn được tạo", async () => {
     const results = await Promise.all([
-      createOrder(actor, input, { idempotencyKey: key }),
-      createOrder(actor, input, { idempotencyKey: key }),
+      createOrder(input, { idempotencyKey: key }),
+      createOrder(input, { idempotencyKey: key }),
     ]);
 
     expect(results[0].order.id).toBe(results[1].order.id);
@@ -93,15 +85,15 @@ describe("createOrder với Idempotency-Key", () => {
   });
 
   it("key khác nhau → hai đơn; không có key → luôn tạo mới", async () => {
-    await createOrder(actor, input, { idempotencyKey: "khoa-thu-nhat" });
-    await createOrder(actor, input, { idempotencyKey: "khoa-thu-hai" });
-    await createOrder(actor, input);
-    await createOrder(actor, input);
+    await createOrder(input, { idempotencyKey: "khoa-thu-nhat" });
+    await createOrder(input, { idempotencyKey: "khoa-thu-hai" });
+    await createOrder(input);
+    await createOrder(input);
     expect(await prisma.order.count()).toBe(4);
   });
 
   it("key quá ngắn → ZodError", async () => {
-    await expect(createOrder(actor, input, { idempotencyKey: "abc" })).rejects.toBeInstanceOf(
+    await expect(createOrder(input, { idempotencyKey: "abc" })).rejects.toBeInstanceOf(
       ZodError,
     );
   });
@@ -110,7 +102,7 @@ describe("createOrder với Idempotency-Key", () => {
 describe("changeStatus", () => {
   it.each(["DELIVERED", "CANCELLED"] as const)("NEW → %s thành công, version tăng", async (status) => {
     const order = await create();
-    const updated = await changeStatus(actor, order.id, { status });
+    const updated = await changeStatus(order.id, { status });
     expect(updated.status).toBe(status);
     expect(updated.version).toBe(2);
   });
@@ -123,7 +115,7 @@ describe("changeStatus", () => {
   ] as const)("đơn %s không đổi được sang %s; DB giữ nguyên", async (from, to) => {
     const order = await createWithStatus(from);
 
-    await expect(changeStatus(actor, order.id, { status: to })).rejects.toBeInstanceOf(
+    await expect(changeStatus(order.id, { status: to })).rejects.toBeInstanceOf(
       OrderLockedError,
     );
     expect((await getOrder(order.id)).status).toBe(from);
@@ -131,17 +123,17 @@ describe("changeStatus", () => {
 
   it("không cho đổi về NEW (ZodError)", async () => {
     const order = await create();
-    await expect(changeStatus(actor, order.id, { status: "NEW" })).rejects.toBeInstanceOf(
+    await expect(changeStatus(order.id, { status: "NEW" })).rejects.toBeInstanceOf(
       ZodError,
     );
   });
 
   it("version cũ → ConflictError, trạng thái không đổi", async () => {
     const order = await create();
-    await updateOrder(actor, order.id, { ...input, quantity: 5, version: order.version });
+    await updateOrder(order.id, { ...input, quantity: 5, version: order.version });
 
     await expect(
-      changeStatus(actor, order.id, { status: "DELIVERED", version: order.version }),
+      changeStatus(order.id, { status: "DELIVERED", version: order.version }),
     ).rejects.toBeInstanceOf(ConflictError);
     expect((await getOrder(order.id)).status).toBe("NEW");
   });
@@ -150,8 +142,8 @@ describe("changeStatus", () => {
     const order = await create();
 
     const results = await Promise.allSettled([
-      changeStatus(actor, order.id, { status: "DELIVERED" }),
-      changeStatus(actor, order.id, { status: "CANCELLED" }),
+      changeStatus(order.id, { status: "DELIVERED" }),
+      changeStatus(order.id, { status: "CANCELLED" }),
     ]);
 
     const fulfilled = results.filter((r) => r.status === "fulfilled");
@@ -172,7 +164,7 @@ describe("updateOrder", () => {
   it("sửa đơn NEW: amount được tính lại, version tăng", async () => {
     const order = await create();
 
-    const updated = await updateOrder(actor, order.id, {
+    const updated = await updateOrder(order.id, {
       ...input,
       quantity: 10,
       unitPrice: "2000",
@@ -187,17 +179,17 @@ describe("updateOrder", () => {
 
   it("thiếu version → ZodError (không cho sửa mù)", async () => {
     const order = await create();
-    await expect(updateOrder(actor, order.id, { ...input, quantity: 4 })).rejects.toBeInstanceOf(
+    await expect(updateOrder(order.id, { ...input, quantity: 4 })).rejects.toBeInstanceOf(
       ZodError,
     );
   });
 
   it("version cũ → ConflictError, thay đổi của người kia được giữ", async () => {
     const order = await create();
-    await updateOrder(actor, order.id, { ...input, quantity: 7, version: order.version });
+    await updateOrder(order.id, { ...input, quantity: 7, version: order.version });
 
     await expect(
-      updateOrder(actor, order.id, { ...input, quantity: 99, version: order.version }),
+      updateOrder(order.id, { ...input, quantity: 99, version: order.version }),
     ).rejects.toBeInstanceOf(ConflictError);
     expect((await getOrder(order.id)).quantity).toBe(7);
   });
@@ -206,8 +198,8 @@ describe("updateOrder", () => {
     const order = await create();
 
     const results = await Promise.allSettled([
-      updateOrder(actor, order.id, { ...input, quantity: 11, version: order.version }),
-      updateOrder(actor, order.id, { ...input, quantity: 22, version: order.version }),
+      updateOrder(order.id, { ...input, quantity: 11, version: order.version }),
+      updateOrder(order.id, { ...input, quantity: 22, version: order.version }),
     ]);
 
     const fulfilled = results.filter((r) => r.status === "fulfilled");
@@ -223,7 +215,7 @@ describe("updateOrder", () => {
 
   it("lưu mà không đổi gì → không tăng version, không ghi lịch sử", async () => {
     const order = await create();
-    const same = await updateOrder(actor, order.id, { ...input, version: order.version });
+    const same = await updateOrder(order.id, { ...input, version: order.version });
 
     expect(same.version).toBe(order.version);
     expect(await prisma.orderEvent.count({ where: { type: "UPDATED" } })).toBe(0);
@@ -233,7 +225,7 @@ describe("updateOrder", () => {
     const order = await createWithStatus("DELIVERED");
 
     await expect(
-      updateOrder(actor, order.id, { ...input, quantity: 99, version: order.version }),
+      updateOrder(order.id, { ...input, quantity: 99, version: order.version }),
     ).rejects.toBeInstanceOf(OrderLockedError);
 
     const after = await getOrder(order.id);
@@ -244,7 +236,7 @@ describe("updateOrder", () => {
   it("input không hợp lệ → ZodError", async () => {
     const order = await create();
     await expect(
-      updateOrder(actor, order.id, { ...input, quantity: 0, version: order.version }),
+      updateOrder(order.id, { ...input, quantity: 0, version: order.version }),
     ).rejects.toBeInstanceOf(ZodError);
   });
 });
@@ -252,7 +244,7 @@ describe("updateOrder", () => {
 describe("deleteOrder (xóa mềm)", () => {
   it("xóa đơn NEW: biến mất khỏi get/list nhưng bản ghi và lịch sử vẫn còn", async () => {
     const order = await create();
-    await deleteOrder(actor, order.id);
+    await deleteOrder(order.id);
 
     await expect(getOrder(order.id)).rejects.toBeInstanceOf(NotFoundError);
     expect((await listOrders()).items).toHaveLength(0);
@@ -265,28 +257,28 @@ describe("deleteOrder (xóa mềm)", () => {
 
   it("đơn đã xóa không sửa/đổi trạng thái/xóa lại được (404)", async () => {
     const order = await create();
-    await deleteOrder(actor, order.id);
+    await deleteOrder(order.id);
 
     await expect(
-      updateOrder(actor, order.id, { ...input, version: order.version + 1 }),
+      updateOrder(order.id, { ...input, version: order.version + 1 }),
     ).rejects.toBeInstanceOf(NotFoundError);
-    await expect(changeStatus(actor, order.id, { status: "DELIVERED" })).rejects.toBeInstanceOf(
+    await expect(changeStatus(order.id, { status: "DELIVERED" })).rejects.toBeInstanceOf(
       NotFoundError,
     );
-    await expect(deleteOrder(actor, order.id)).rejects.toBeInstanceOf(NotFoundError);
+    await expect(deleteOrder(order.id)).rejects.toBeInstanceOf(NotFoundError);
   });
 
   it.each(["DELIVERED", "CANCELLED"] as const)("không xóa được đơn %s", async (status) => {
     const order = await createWithStatus(status);
-    await expect(deleteOrder(actor, order.id)).rejects.toBeInstanceOf(OrderLockedError);
+    await expect(deleteOrder(order.id)).rejects.toBeInstanceOf(OrderLockedError);
     expect((await getOrder(order.id)).status).toBe(status);
   });
 
   it("version cũ → ConflictError, đơn vẫn còn", async () => {
     const order = await create();
-    await updateOrder(actor, order.id, { ...input, quantity: 8, version: order.version });
+    await updateOrder(order.id, { ...input, quantity: 8, version: order.version });
 
-    await expect(deleteOrder(actor, order.id, { version: order.version })).rejects.toBeInstanceOf(
+    await expect(deleteOrder(order.id, { version: order.version })).rejects.toBeInstanceOf(
       ConflictError,
     );
     expect((await getOrder(order.id)).quantity).toBe(8);
@@ -294,19 +286,14 @@ describe("deleteOrder (xóa mềm)", () => {
 });
 
 describe("lịch sử thay đổi (audit trail)", () => {
-  it("ghi lại ai làm gì, theo thứ tự, kèm giá trị cũ → mới", async () => {
-    const other = await createTestUser("nguoi-thu-hai");
+  it("ghi lại từng thay đổi, theo thứ tự, kèm giá trị cũ → mới", async () => {
     const order = await create();
-    await updateOrder(other, order.id, { ...input, quantity: 4, version: order.version });
-    await changeStatus(actor, order.id, { status: "DELIVERED" });
+    await updateOrder(order.id, { ...input, quantity: 4, version: order.version });
+    await changeStatus(order.id, { status: "DELIVERED" });
 
     const history = await getOrderHistory(order.id);
 
-    expect(history.map((e) => [e.type, e.actor.name])).toEqual([
-      ["CREATED", actor.name],
-      ["UPDATED", other.name],
-      ["STATUS_CHANGED", actor.name],
-    ]);
+    expect(history.map((e) => e.type)).toEqual(["CREATED", "UPDATED", "STATUS_CHANGED"]);
     expect(history[0].changes).toMatchObject({ quantity: 3, amount: "37501.50" });
     expect(history[1].changes).toEqual({
       quantity: { from: 3, to: 4 },
@@ -317,7 +304,7 @@ describe("lịch sử thay đổi (audit trail)", () => {
 
   it("thao tác bị từ chối không để lại dòng lịch sử nào", async () => {
     const order = await createWithStatus("DELIVERED");
-    await expect(changeStatus(actor, order.id, { status: "CANCELLED" })).rejects.toThrow();
+    await expect(changeStatus(order.id, { status: "CANCELLED" })).rejects.toThrow();
     expect(await prisma.orderEvent.count()).toBe(2); // CREATED + STATUS_CHANGED
   });
 
@@ -346,19 +333,19 @@ describe("id không tồn tại → NotFoundError", () => {
   });
 
   it("updateOrder", async () => {
-    await expect(updateOrder(actor, missing, { ...input, version: 1 })).rejects.toBeInstanceOf(
+    await expect(updateOrder(missing, { ...input, version: 1 })).rejects.toBeInstanceOf(
       NotFoundError,
     );
   });
 
   it("changeStatus", async () => {
-    await expect(changeStatus(actor, missing, { status: "DELIVERED" })).rejects.toBeInstanceOf(
+    await expect(changeStatus(missing, { status: "DELIVERED" })).rejects.toBeInstanceOf(
       NotFoundError,
     );
   });
 
   it("deleteOrder", async () => {
-    await expect(deleteOrder(actor, missing)).rejects.toBeInstanceOf(NotFoundError);
+    await expect(deleteOrder(missing)).rejects.toBeInstanceOf(NotFoundError);
   });
 });
 

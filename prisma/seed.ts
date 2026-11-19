@@ -1,11 +1,7 @@
-import { upsertUser } from "../lib/auth/users";
 import { prisma } from "../lib/db";
 import { changeStatus, createOrder } from "../lib/orders/service";
 import { addDays, vnDayStartUtc, vnToday } from "../lib/time";
 import { assertSafeToSeed } from "./seed-guard";
-
-// Dev-only default; never used outside a *_dev/_test/_e2e database (see guard).
-const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? "admin1234";
 
 type SeedOrder = {
   customerName: string;
@@ -48,10 +44,6 @@ function vnTimeToUtc(daysAgo: number, [hour, minute]: [number, number]): Date {
 async function main() {
   assertSafeToSeed(process.env);
 
-  // Users and sessions are kept (re-running the seed does not log anyone out);
-  // the admin's password is reset to the known dev value.
-  const admin = await upsertUser({ username: "admin", name: "Quản trị viên", password: ADMIN_PASSWORD });
-
   // Clearing the tables makes the seed re-runnable. This bypasses the service
   // on purpose: the service (rightly) refuses to delete finalised orders, and
   // the audit table rejects row deletes — TRUNCATE is the only way to reset it.
@@ -61,9 +53,9 @@ async function main() {
     // Writes go through the service so seed data obeys the same rules
     // (validation, server-computed amount, allowed transitions, audit trail)
     // as real data.
-    const { order } = await createOrder(admin, seed);
+    const { order } = await createOrder(seed);
     if (seed.status !== "NEW") {
-      await changeStatus(admin, order.id, { status: seed.status });
+      await changeStatus(order.id, { status: seed.status });
     }
     // createdAt is server-controlled, so the service offers no way to set it.
     // Back-dating is only needed to spread demo data over several days. The

@@ -24,9 +24,6 @@ import {
 } from "./schema";
 import { canTransition, isFinal } from "./transitions";
 
-// Who performs a write; recorded in the audit trail.
-export type Actor = { id: string };
-
 // Shape sent to clients: money as string (no float rounding), dates as ISO.
 export type OrderDTO = {
   id: string;
@@ -106,12 +103,11 @@ function diffFields(before: Order, after: WriteData): Record<string, FieldChange
 
 async function recordEvent(
   tx: Tx,
-  actor: Actor,
   orderId: string,
   type: OrderEventType,
   details: { fromStatus?: OrderStatus; toStatus?: OrderStatus; changes?: Prisma.InputJsonValue } = {},
 ): Promise<void> {
-  await tx.orderEvent.create({ data: { orderId, type, actorId: actor.id, ...details } });
+  await tx.orderEvent.create({ data: { orderId, type, ...details } });
 }
 
 // Reads the order inside the transaction and enforces the common rules for
@@ -147,7 +143,6 @@ export type CreateOrderResult = { order: OrderDTO; replayed: boolean };
 // With an idempotency key, retrying the same request (e.g. after a network
 // timeout) returns the order created the first time instead of a duplicate.
 export async function createOrder(
-  actor: Actor,
   input: unknown,
   options: { idempotencyKey?: string | null } = {},
 ): Promise<CreateOrderResult> {
@@ -167,7 +162,7 @@ export async function createOrder(
   try {
     const order = await prisma.$transaction(async (tx) => {
       const created = await tx.order.create({ data: { ...data, status: "NEW", idempotencyKey } });
-      await recordEvent(tx, actor, created.id, "CREATED", {
+      await recordEvent(tx, created.id, "CREATED", {
         toStatus: "NEW",
         changes: auditFields(created),
       });
@@ -220,7 +215,7 @@ export async function listOrders(filter: unknown = {}): Promise<OrderPage> {
   };
 }
 
-export async function updateOrder(actor: Actor, id: string, input: unknown): Promise<OrderDTO> {
+export async function updateOrder(id: string, input: unknown): Promise<OrderDTO> {
   const { version, ...fields } = orderUpdateSchema.parse(input);
   const data = toWriteData(fields);
 
@@ -231,12 +226,12 @@ export async function updateOrder(actor: Actor, id: string, input: unknown): Pro
     if (Object.keys(changes).length === 0) return toOrderDTO(current);
 
     await conditionalUpdate(tx, current, data);
-    await recordEvent(tx, actor, id, "UPDATED", { changes });
+    await recordEvent(tx, id, "UPDATED", { changes });
     return toOrderDTO(await tx.order.findUniqueOrThrow({ where: { id } }));
   });
 }
 
-export async function changeStatus(actor: Actor, id: string, input: unknown): Promise<OrderDTO> {
+export async function changeStatus(id: string, input: unknown): Promise<OrderDTO> {
   const { status: to, version } = statusChangeSchema.parse(input);
 
   return prisma.$transaction(async (tx) => {
@@ -244,19 +239,19 @@ export async function changeStatus(actor: Actor, id: string, input: unknown): Pr
     if (!canTransition(current.status, to)) throw new InvalidTransitionError(current.status, to);
 
     await conditionalUpdate(tx, current, { status: to });
-    await recordEvent(tx, actor, id, "STATUS_CHANGED", { fromStatus: current.status, toStatus: to });
+    await recordEvent(tx, id, "STATUS_CHANGED", { fromStatus: current.status, toStatus: to });
     return toOrderDTO(await tx.order.findUniqueOrThrow({ where: { id } }));
   });
 }
 
 // Soft delete: only NEW orders, and the audit trail keeps the record.
-export async function deleteOrder(actor: Actor, id: string, options: unknown = {}): Promise<void> {
+export async function deleteOrder(id: string, options: unknown = {}): Promise<void> {
   const { version } = deleteOptionsSchema.parse(options);
 
   await prisma.$transaction(async (tx) => {
     const current = await loadForWrite(tx, id, version);
     await conditionalUpdate(tx, current, { deletedAt: new Date() });
-    await recordEvent(tx, actor, id, "DELETED", { fromStatus: current.status });
+    await recordEvent(tx, id, "DELETED", { fromStatus: current.status });
   });
 }
 
@@ -266,11 +261,10 @@ export type OrderEventDTO = {
   fromStatus: OrderStatus | null;
   toStatus: OrderStatus | null;
   changes: Record<string, unknown> | null;
-  actor: { id: string; name: string };
   createdAt: string;
 };
 
-function toEventDTO(event: OrderEvent & { actor: { id: string; name: string } }): OrderEventDTO {
+function toEventDTO(event: OrderEvent): OrderEventDTO {
   const changes = event.changes;
   return {
     id: event.id,
@@ -281,7 +275,6 @@ function toEventDTO(event: OrderEvent & { actor: { id: string; name: string } })
       changes && typeof changes === "object" && !Array.isArray(changes)
         ? (changes as Record<string, unknown>)
         : null,
-    actor: event.actor,
     createdAt: event.createdAt.toISOString(),
   };
 }
@@ -292,7 +285,6 @@ export async function getOrderHistory(id: string): Promise<OrderEventDTO[]> {
   const events = await prisma.orderEvent.findMany({
     where: { orderId: id },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-    include: { actor: { select: { id: true, name: true } } },
   });
   return events.map(toEventDTO);
 }

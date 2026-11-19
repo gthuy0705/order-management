@@ -30,16 +30,13 @@ App nhỏ quản lý đơn hàng cho bài test tại nhà (hạn 48h). Người 
 ## Cấu trúc thư mục
 
 ```
-proxy.ts                  # request id + chuyển hướng lạc quan sang /login (KHÔNG phải kiểm tra quyền)
+proxy.ts                  # gắn request id cho mọi request
 instrumentation.ts        # kiểm tra env lúc khởi động; log lỗi có cấu trúc (onRequestError)
 app/
-  login/                  # trang đăng nhập + login/logout Server Action (ngoài app chrome)
-  (app)/                  # route group: layout có header/nav/menu người dùng (URL không đổi)
-    orders/               # trang danh sách, tạo, chi tiết (+ lịch sử)
-    reports/revenue/      # trang báo cáo
+  orders/                 # trang danh sách, tạo, chi tiết (+ lịch sử)
+  reports/revenue/        # trang báo cáo
   api/orders/...          # route handlers (mỏng)
   api/reports/revenue/
-  api/auth/login|logout/
   api/health/
 lib/
   db.ts                   # PrismaClient singleton + isDatabaseReachable()
@@ -47,7 +44,6 @@ lib/
   log.ts                  # log JSON một dòng, request id
   time.ts                 # helper timezone VN (tự viết)
   http.ts                 # map lỗi domain -> HTTP response
-  auth/                   # password (scrypt), sessions, users, requireUser/requireApiUser
   orders/
     errors.ts             # DomainError, NotFoundError, ConflictError, InvalidTransitionError, OrderLockedError
     schema.ts             # Zod schema input (+ version, cursor, idempotency key)
@@ -59,7 +55,6 @@ prisma/
   schema.prisma
   migrations/
   seed.ts, seed-guard.ts
-scripts/create-user.ts
 tests/
   unit/
   integration/
@@ -74,13 +69,12 @@ docs/screenshots/
 - **Tiền:** dùng `Prisma.Decimal` cho mọi phép tính; không dùng `number` cho tiền. Trong JSON trả về, tiền là **string** (vd `"150000.00"`). Đơn giá nhận vào phải được chuyển sang Decimal từ **string** để tránh lỗi float.
 - **Sửa / đổi trạng thái / xóa** chạy trong `prisma.$transaction`: đọc đơn (chưa xóa mềm) → `NotFoundError` / `OrderLockedError` / `ConflictError` (version client gửi khác version hiện tại) → **update có điều kiện** `updateMany({ where: { id, status, version, deletedAt: null } })` tăng `version` → `count === 0` thì `ConflictError` → ghi `order_events` trong cùng transaction. Không dùng kiểu "đọc rồi ghi" không điều kiện. `PATCH` bắt buộc có `version`; đổi trạng thái/xóa thì tùy chọn.
 - **Xóa là xóa mềm** (`deletedAt`). Mọi truy vấn đọc phải lọc `deletedAt: null` (hằng `ACTIVE` trong service; `deleted_at IS NULL` trong SQL báo cáo).
-- **Lịch sử (`order_events`) chỉ ghi thêm** (trigger chặn UPDATE/DELETE). Mỗi thay đổi đơn phải ghi đúng một event với `actorId`. Reset dữ liệu chỉ bằng `TRUNCATE` (test, seed).
-- **Xác thực:** mọi route API nghiệp vụ gọi `requireApiUser(request)` đầu tiên; mọi Server Action và component đọc dữ liệu gọi `requireUser()`. `proxy.ts` chỉ chuyển hướng cho UX, không được coi là lớp phân quyền. Service ghi nhận `actor` làm tham số đầu.
+- **Lịch sử (`order_events`) chỉ ghi thêm** (trigger chặn UPDATE/DELETE). Mỗi thay đổi đơn phải ghi đúng một event. Reset dữ liệu chỉ bằng `TRUNCATE` (test, seed).
+- **Không có đăng nhập** (người dùng đã quyết định bỏ). Không tự thêm lại auth khi chưa hỏi.
 - **Chuyển trạng thái** chỉ được kiểm tra qua bảng `TRANSITIONS` trong `transitions.ts` (dữ liệu, không phải chuỗi if/else).
 - **Timezone:** DB lưu UTC (`timestamptz`). "Ngày nghiệp vụ" = Asia/Ho_Chi_Minh (UTC+7, không có DST). Mọi chuyển đổi ngày nằm trong `lib/time.ts`.
 - **Lỗi:** service ném lỗi domain; `lib/http.ts` map duy nhất một chỗ:
   - `ZodError` → 400 (kèm lỗi theo field)
-  - `UnauthorizedError` → 401
   - `NotFoundError` → 404
   - `ConflictError` → 409
   - `InvalidTransitionError` / `OrderLockedError` → 422
@@ -96,8 +90,7 @@ docs/screenshots/
 | Lệnh | Việc |
 |---|---|
 | `npm run db:up` | `docker compose up -d` (Postgres: orders_dev, orders_test, orders_e2e) |
-| `npm run db:setup` | migrate + seed DB dev (user `admin` / `admin1234`) |
-| `npm run user:create` | tạo/đặt lại mật khẩu user (`NEW_USER_PASSWORD=… npm run user:create -- <username> "<tên>"`) |
+| `npm run db:setup` | migrate + seed DB dev |
 | `npm run dev` | chạy app |
 | `npm run test:unit` | Vitest unit |
 | `npm run test:int` | Vitest integration (dùng DB test) |

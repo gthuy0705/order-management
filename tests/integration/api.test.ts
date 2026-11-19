@@ -1,15 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as loginRoute from "@/app/api/auth/login/route";
-import * as logoutRoute from "@/app/api/auth/logout/route";
+import { describe, expect, it, vi } from "vitest";
 import * as healthRoute from "@/app/api/health/route";
 import * as ordersRoute from "@/app/api/orders/route";
 import * as orderRoute from "@/app/api/orders/[id]/route";
 import * as historyRoute from "@/app/api/orders/[id]/history/route";
 import * as statusRoute from "@/app/api/orders/[id]/status/route";
 import * as revenueRoute from "@/app/api/reports/revenue/route";
-import { SESSION_COOKIE } from "@/lib/auth/sessions";
 import { prisma } from "@/lib/db";
-import { createTestToken, createTestUser, TEST_PASSWORD } from "./helpers";
 
 // connection() needs a Next request scope; route handlers called directly in
 // tests have none, so stub it to a no-op (it only marks the route dynamic).
@@ -27,28 +23,18 @@ const input = {
   unitPrice: "150000",
 };
 
-let token: string;
-
-beforeEach(async () => {
-  ({ token } = await createTestToken());
-});
-
-function request(path: string, init: RequestInit & { auth?: boolean } = {}): Request {
-  const { auth = true, headers, ...rest } = init;
-  const all = new Headers(headers);
-  if (auth) all.set("authorization", `Bearer ${token}`);
-  return new Request(`${BASE}${path}`, { ...rest, headers: all });
+function request(path: string, init: RequestInit = {}): Request {
+  return new Request(`${BASE}${path}`, init);
 }
 
 function jsonRequest(
   path: string,
   method: string,
   body: unknown,
-  init: { auth?: boolean; headers?: Record<string, string> } = {},
+  init: { headers?: Record<string, string> } = {},
 ): Request {
   return request(path, {
     method,
-    auth: init.auth,
     headers: { "content-type": "application/json", ...init.headers },
     body: typeof body === "string" ? body : JSON.stringify(body),
   });
@@ -69,85 +55,6 @@ async function deliverViaApi(id: string) {
     ctx(id),
   );
 }
-
-describe("xác thực", () => {
-  it("không có token → 401 ở mọi API nghiệp vụ, không ghi gì vào DB", async () => {
-    const responses = await Promise.all([
-      ordersRoute.GET(request("/orders", { auth: false })),
-      ordersRoute.POST(jsonRequest("/orders", "POST", input, { auth: false })),
-      orderRoute.GET(request("/orders/x", { auth: false }), ctx("x")),
-      orderRoute.PATCH(jsonRequest("/orders/x", "PATCH", input, { auth: false }), ctx("x")),
-      orderRoute.DELETE(request("/orders/x", { method: "DELETE", auth: false }), ctx("x")),
-      statusRoute.POST(
-        jsonRequest("/orders/x/status", "POST", { status: "DELIVERED" }, { auth: false }),
-        ctx("x"),
-      ),
-      historyRoute.GET(request("/orders/x/history", { auth: false }), ctx("x")),
-      revenueRoute.GET(request("/reports/revenue", { auth: false })),
-    ]);
-
-    expect(responses.map((r) => r.status)).toEqual(Array(responses.length).fill(401));
-    expect(await prisma.order.count()).toBe(0);
-  });
-
-  it("token sai hoặc đã hết hạn → 401", async () => {
-    const wrong = new Request(`${BASE}/orders`, { headers: { authorization: "Bearer sai" } });
-    expect((await ordersRoute.GET(wrong)).status).toBe(401);
-
-    await prisma.session.updateMany({ data: { expiresAt: new Date(Date.now() - 1000) } });
-    expect((await ordersRoute.GET(request("/orders"))).status).toBe(401);
-    expect(await prisma.session.count()).toBe(0); // expired session is cleaned up
-  });
-
-  it("cookie phiên cũng được chấp nhận", async () => {
-    const res = await ordersRoute.GET(
-      new Request(`${BASE}/orders`, { headers: { cookie: `a=b; ${SESSION_COOKIE}=${token}` } }),
-    );
-    expect(res.status).toBe(200);
-  });
-
-  it("login đúng → token dùng được; sai mật khẩu → 401 không nói rõ phần nào sai", async () => {
-    await createTestUser("dang-nhap");
-
-    const bad = await loginRoute.POST(
-      jsonRequest("/auth/login", "POST", { username: "dang-nhap", password: "sai" }, { auth: false }),
-    );
-    const unknown = await loginRoute.POST(
-      jsonRequest("/auth/login", "POST", { username: "khong-co", password: "sai" }, { auth: false }),
-    );
-    expect(bad.status).toBe(401);
-    expect(unknown.status).toBe(401);
-    expect((await bad.json()).error).toBe((await unknown.json()).error);
-
-    const ok = await loginRoute.POST(
-      jsonRequest(
-        "/auth/login",
-        "POST",
-        { username: "dang-nhap", password: TEST_PASSWORD },
-        { auth: false },
-      ),
-    );
-    expect(ok.status).toBe(200);
-    const body = await ok.json();
-    expect(body.user).toMatchObject({ username: "dang-nhap" });
-    expect(body).not.toHaveProperty("user.passwordHash");
-    const cookie = ok.headers.get("set-cookie") ?? "";
-    expect(cookie).toContain(`${SESSION_COOKIE}=`);
-    expect(cookie.toLowerCase()).toContain("httponly");
-    expect(cookie.toLowerCase()).toContain("samesite=lax");
-
-    const list = await ordersRoute.GET(
-      new Request(`${BASE}/orders`, { headers: { authorization: `Bearer ${body.token}` } }),
-    );
-    expect(list.status).toBe(200);
-  });
-
-  it("logout thu hồi phiên ở server", async () => {
-    const res = await logoutRoute.POST(request("/auth/logout", { method: "POST" }));
-    expect(res.status).toBe(204);
-    expect((await ordersRoute.GET(request("/orders"))).status).toBe(401);
-  });
-});
 
 describe("POST /api/orders", () => {
   it("201, tiền là string, server tự tính amount và đặt NEW", async () => {
@@ -293,7 +200,7 @@ describe("/api/orders/[id]", () => {
     expect((await del(edited.id, "?version=1")).status).toBe(409);
   });
 
-  it("GET history trả lịch sử kèm người thực hiện", async () => {
+  it("GET history trả lịch sử theo thứ tự", async () => {
     const { body: created } = await createViaApi();
     await deliverViaApi(created.id);
 
@@ -302,7 +209,6 @@ describe("/api/orders/[id]", () => {
 
     expect(res.status).toBe(200);
     expect(events.map((e: { type: string }) => e.type)).toEqual(["CREATED", "STATUS_CHANGED"]);
-    expect(events[1].actor.name).toBe("Người dùng tester");
   });
 });
 

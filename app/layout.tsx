@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Link from "next/link";
+import { Suspense } from "react";
+import { NavLinks, SiteNav } from "./site-nav";
 import "./globals.css";
 
 // next/font downloads these at build time and serves them from our own domain.
@@ -17,12 +20,28 @@ export const viewport: Viewport = {
   colorScheme: "dark",
 };
 
-// The app chrome (header, nav, user menu) lives in app/(app)/layout.tsx, so
-// /login renders without links that would only bounce back to /login.
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="vi" className={`${geist.variable} ${geistMono.variable}`}>
-      <body>{children}</body>
+      <body>
+        <a className="skip-link" href="#main">
+          Bỏ qua đến nội dung
+        </a>
+        <header className="site-header">
+          <div className="wrap site-header__inner">
+            <Link href="/orders" className="brand">
+              <span className="brand__mark" aria-hidden="true" />
+              <span className="brand__name">Quản lý đơn hàng</span>
+            </Link>
+            <Suspense fallback={<NavLinks pathname={null} />}>
+              <SiteNav />
+            </Suspense>
+          </div>
+        </header>
+        <main id="main" className="wrap">
+          {children}
+        </main>
+      </body>
     </html>
   );
 }

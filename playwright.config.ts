@@ -1,6 +1,5 @@
 import { existsSync } from "node:fs";
 import { defineConfig, devices } from "@playwright/test";
-import { STORAGE_STATE } from "./tests/e2e/helpers";
 
 // Same rule as vitest.config.mts: .env is only a fallback for variables that
 // are not already set (e.g. in CI).
@@ -37,35 +36,23 @@ export default defineConfig({
     viewport: { width: 1280, height: 800 },
   },
   projects: [
-    // Logs in once and saves the session cookie for the projects below.
-    { name: "setup", testMatch: "**/auth.setup.ts" },
     {
       name: "e2e",
       testMatch: "**/*.spec.ts",
       testIgnore: "**/screenshots.spec.ts",
-      dependencies: ["setup"],
-      use: {
-        ...devices["Desktop Chrome"],
-        viewport: { width: 1280, height: 800 },
-        storageState: STORAGE_STATE,
-      },
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 } },
     },
     {
       name: "screenshots",
       testMatch: "**/screenshots.spec.ts",
-      dependencies: ["setup"],
-      use: {
-        ...devices["Desktop Chrome"],
-        viewport: { width: 1280, height: 800 },
-        storageState: STORAGE_STATE,
-      },
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 } },
     },
   ],
   webServer: {
     // A production build: closer to what users get and no dev overlay in
     // screenshots. Uses its own port so it can run next to `npm run dev`.
     command: `npm run build && npm run start -- --port ${PORT}`,
-    // /api/health is public and answers 200 only once the DB is reachable.
+    // /api/health answers 200 only once the DB is reachable.
     url: `http://localhost:${PORT}/api/health`,
     env: { DATABASE_URL: e2eDatabaseUrl },
     reuseExistingServer: !process.env.CI,

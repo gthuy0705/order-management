@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { requireUser } from "@/lib/auth/current-user";
 import { formatMoney, formatVnDateTime } from "@/lib/format";
 import { NotFoundError } from "@/lib/orders/errors";
 import {
@@ -43,7 +42,6 @@ export default function OrderPage({ params }: PageProps<"/orders/[id]">) {
 }
 
 async function OrderDetail({ params }: Pick<PageProps<"/orders/[id]">, "params">) {
-  await requireUser();
   const { id } = await params;
   const { order, history } = await loadOrder(id);
   const editable = order.status === "NEW";

@@ -1,6 +1,6 @@
 # Order Management
 
-App nhỏ quản lý đơn hàng (tạo / sửa / đổi trạng thái / xóa) và báo cáo doanh thu theo ngày, có đăng nhập và lịch sử thay đổi của từng đơn.
+App nhỏ quản lý đơn hàng (tạo / sửa / đổi trạng thái / xóa) và báo cáo doanh thu theo ngày, có lịch sử thay đổi của từng đơn. Không có đăng nhập (xem *Giả định*).
 Dùng **Next.js** thay vì Frappe vì đề cho phép framework quen thuộc: một codebase TypeScript cho cả API, giao diện và test, kiểm soát rõ ràng từng lớp kiểm tra ở server.
 
 ![Danh sách đơn hàng](docs/screenshots/01-danh-sach.png)
@@ -17,19 +17,13 @@ Dùng **Next.js** thay vì Frappe vì đề cho phép framework quen thuộc: m�
 cp .env.example .env        # Windows PowerShell: Copy-Item .env.example .env
 npm ci                      # tự chạy `prisma generate`
 npm run db:up               # Postgres 16 trong Docker: orders_dev, orders_test, orders_e2e
-npm run db:setup            # migrate + seed ~15 đơn mẫu và user admin vào orders_dev
-npm run dev                 # http://localhost:3000 — đăng nhập: admin / admin1234
+npm run db:setup            # migrate + seed ~15 đơn mẫu vào orders_dev
+npm run dev                 # http://localhost:3000
 ```
 
-> Cổng 5432 phải còn trống. `npm run db:setup` chạy lại được nhiều lần (seed xóa đơn cũ, giữ user và phiên đăng nhập).
+> Cổng 5432 phải còn trống. `npm run db:setup` chạy lại được nhiều lần (seed xóa đơn cũ rồi tạo lại).
 >
-> **Seed chỉ chạy trên database có tên đuôi `_dev`, `_test` hoặc `_e2e`.** Trỏ nhầm `DATABASE_URL` vào DB thật thì seed từ chối chạy (muốn ép thì đặt `ALLOW_SEED=1`). Đổi mật khẩu admin của seed bằng `SEED_ADMIN_PASSWORD`.
-
-Tạo tài khoản cho người dùng thật (hoặc đặt lại mật khẩu):
-
-```bash
-NEW_USER_PASSWORD='mật-khẩu-đủ-8-ký-tự' npm run user:create -- lan "Nguyễn Thị Lan"
-```
+> **Seed chỉ chạy trên database có tên đuôi `_dev`, `_test` hoặc `_e2e`.** Trỏ nhầm `DATABASE_URL` vào DB thật thì seed từ chối chạy (muốn ép thì đặt `ALLOW_SEED=1`).
 
 Biến môi trường được kiểm tra **ngay khi server khởi động** ([instrumentation.ts](instrumentation.ts) → [lib/env.ts](lib/env.ts)): thiếu hoặc sai `DATABASE_URL` thì server dừng với thông báo rõ ràng, không đợi tới request đầu tiên mới lỗi.
 
@@ -52,56 +46,47 @@ Ba database tách biệt nên chạy `npm test` và `npm run e2e` cùng lúc v�
 
 ## API
 
-Mọi API nghiệp vụ **yêu cầu đăng nhập** (không có phiên → `401`). Gửi `Authorization: Bearer <token>` (lấy từ `/api/auth/login`), hoặc cookie phiên do trang đăng nhập đặt.
-
 Tiền trong JSON luôn là **string** (vd `"150000.00"`). Lỗi trả về `{ "error": "...", "fieldErrors"?: { "<field>": ["..."] } }`; riêng lỗi 500 trả thêm `requestId` để đối chiếu với log.
 
 | Method | Path | Thành công | Lỗi |
 |---|---|---|---|
-| `POST` | `/api/auth/login` | 200 `{ token, expiresAt, user }` | 400, 401 |
-| `POST` | `/api/auth/logout` | 204 (thu hồi phiên ở server) | |
-| `GET` | `/api/health` (không cần đăng nhập) | 200 | 503 khi DB không trả lời |
-| `GET` | `/api/orders?status=&limit=&cursor=` | 200 `{ items, nextCursor }` | 400, 401 |
-| `POST` | `/api/orders` (header tùy chọn `Idempotency-Key`) | 201; gửi lại cùng key → 200 | 400, 401 |
-| `GET` | `/api/orders/:id` | 200 | 401, 404 |
-| `GET` | `/api/orders/:id/history` | 200 | 401, 404 |
-| `PATCH` | `/api/orders/:id` (body bắt buộc có `version`) | 200 | 400, 401, 404, 409, 422 |
-| `DELETE` | `/api/orders/:id?version=` | 204 | 401, 404, 409, 422 |
-| `POST` | `/api/orders/:id/status` | 200 | 400, 401, 404, 409, 422 |
-| `GET` | `/api/reports/revenue?from=YYYY-MM-DD&to=YYYY-MM-DD` | 200 | 400, 401 |
+| `GET` | `/api/health` | 200 | 503 khi DB không trả lời |
+| `GET` | `/api/orders?status=&limit=&cursor=` | 200 `{ items, nextCursor }` | 400 |
+| `POST` | `/api/orders` (header tùy chọn `Idempotency-Key`) | 201; gửi lại cùng key → 200 | 400 |
+| `GET` | `/api/orders/:id` | 200 | 404 |
+| `GET` | `/api/orders/:id/history` | 200 | 404 |
+| `PATCH` | `/api/orders/:id` (body bắt buộc có `version`) | 200 | 400, 404, 409, 422 |
+| `DELETE` | `/api/orders/:id?version=` | 204 | 404, 409, 422 |
+| `POST` | `/api/orders/:id/status` | 200 | 400, 404, 409, 422 |
+| `GET` | `/api/reports/revenue?from=YYYY-MM-DD&to=YYYY-MM-DD` | 200 | 400 |
 
 ```bash
 B=http://localhost:3000/api
 
-# Đăng nhập → lấy token
-TOKEN=$(curl -s -X POST $B/auth/login -H 'content-type: application/json' \
-  -d '{"username":"admin","password":"admin1234"}' | node -pe 'JSON.parse(require("fs").readFileSync(0)).token')
-H="authorization: Bearer $TOKEN"
-
 # Tạo đơn → 201. Gửi lại cùng Idempotency-Key (vd sau khi timeout) → 200, không tạo đơn trùng
-curl -X POST $B/orders -H "$H" -H 'content-type: application/json' -H 'idempotency-key: 6f1c2b0e-tao-don-01' \
+curl -X POST $B/orders -H 'content-type: application/json' -H 'idempotency-key: 6f1c2b0e-tao-don-01' \
   -d '{"customerName":"Nguyen Van A","productName":"But bi","quantity":2,"unitPrice":"150000"}'
 
 # Danh sách: mới nhất trước, 20 dòng/trang (tối đa 100); trang sau dùng nextCursor
-curl -H "$H" "$B/orders?status=NEW&limit=20"
-curl -H "$H" "$B/orders?limit=20&cursor=<nextCursor>"
+curl "$B/orders?status=NEW&limit=20"
+curl "$B/orders?limit=20&cursor=<nextCursor>"
 
 # Chi tiết và lịch sử thay đổi
-curl -H "$H" $B/orders/<id>
-curl -H "$H" $B/orders/<id>/history
+curl $B/orders/<id>
+curl $B/orders/<id>/history
 
 # Sửa đơn NEW: gửi đủ 4 field + version đang thấy → 409 nếu ai đó đã sửa trước, 422 nếu đơn đã chốt
-curl -X PATCH $B/orders/<id> -H "$H" -H 'content-type: application/json' \
+curl -X PATCH $B/orders/<id> -H 'content-type: application/json' \
   -d '{"customerName":"Nguyen Van A","productName":"But bi","quantity":3,"unitPrice":"150000","version":1}'
 
 # Đổi trạng thái: DELIVERED | CANCELLED (version tùy chọn) → 422 nếu đã chốt, 409 nếu vừa bị đổi ở nơi khác
-curl -X POST $B/orders/<id>/status -H "$H" -H 'content-type: application/json' -d '{"status":"DELIVERED","version":2}'
+curl -X POST $B/orders/<id>/status -H 'content-type: application/json' -d '{"status":"DELIVERED","version":2}'
 
 # Xóa (mềm) đơn NEW → 204
-curl -X DELETE -H "$H" "$B/orders/<id>?version=2"
+curl -X DELETE "$B/orders/<id>?version=2"
 
 # Báo cáo doanh thu (ngày giờ VN, gồm cả 2 đầu; bỏ trống = 30 ngày gần nhất)
-curl -H "$H" "$B/reports/revenue?from=2026-11-01&to=2026-11-18"
+curl "$B/reports/revenue?from=2026-11-01&to=2026-11-18"
 
 # Health check cho load balancer / uptime monitor
 curl $B/health
@@ -117,26 +102,24 @@ curl $B/health
 - "Ngày" trong báo cáo và hiển thị là **giờ Việt Nam (UTC+7)**; DB lưu UTC. Báo cáo nhóm theo **ngày tạo đơn**, không phải ngày giao.
 - Ngày không có đơn đã giao **không hiện dòng** trong báo cáo. Khoảng báo cáo tối đa 366 ngày; mặc định 30 ngày gần nhất tính tới hôm nay.
 - Đơn đã chốt (Đã giao / Đã hủy) **không được sửa, đổi trạng thái hay xóa**. Chỉ đơn `NEW` xóa được, và xóa là **xóa mềm**: đơn biến mất khỏi danh sách/API (404) nhưng bản ghi và lịch sử vẫn còn trong DB.
-- **Một vai trò duy nhất:** mọi người đã đăng nhập có cùng quyền. Phân quyền theo vai trò (vd chỉ quản lý được hủy/xóa) cần quy tắc nghiệp vụ cụ thể nên chưa làm.
+- **Không có đăng nhập** (đề không yêu cầu): ai mở được app/API đều có toàn quyền, nên app chỉ nên chạy trong mạng nội bộ hoặc sau một lớp xác thực ở reverse proxy. Vì vậy lịch sử thay đổi ghi **cái gì và lúc nào**, không ghi **ai**.
 - Idempotency-Key: gửi lại cùng key thì luôn trả về đơn đã tạo lần đầu, **không so sánh nội dung** request.
-- Phiên đăng nhập có hạn **7 ngày** (cố định, không gia hạn khi dùng). Cookie `Secure` chỉ bật khi `NODE_ENV=production`, nên production phải chạy sau HTTPS.
 
 ## Quyết định thiết kế
 
-- **Một lớp service** ([lib/orders/service.ts](lib/orders/service.ts)) chứa toàn bộ nghiệp vụ. Route handler ([app/api](app/api)) và Server Action ([app/(app)/orders/actions.ts](<app/(app)/orders/actions.ts>)) chỉ kiểm tra phiên → đọc input → gọi service → map lỗi. Nhờ vậy API và giao diện tuân theo đúng cùng một bộ quy tắc.
+- **Một lớp service** ([lib/orders/service.ts](lib/orders/service.ts)) chứa toàn bộ nghiệp vụ. Route handler ([app/api](app/api)) và Server Action ([app/orders/actions.ts](app/orders/actions.ts)) chỉ đọc input → gọi service → map lỗi. Nhờ vậy API và giao diện tuân theo đúng cùng một bộ quy tắc.
 - **Không tin client:** Zod ([lib/orders/schema.ts](lib/orders/schema.ts)) bỏ mọi field lạ (`amount`, `status`, `id`, `createdAt`). Server tự tính thành tiền và luôn tạo đơn ở trạng thái `NEW`.
 - **Chống ghi đè (optimistic locking) và race:** mỗi đơn có cột `version`, tăng sau mỗi lần ghi. Mọi thao tác ghi chạy trong một transaction: đọc đơn → kiểm tra tồn tại / chưa chốt / đúng version client gửi → `updateMany` với `WHERE id AND status AND version = <vừa đọc>`. Nếu có request khác commit chen vào giữa, Postgres kiểm tra lại `WHERE` sau khi chờ khóa dòng, `count = 0` → **409**. Kết quả:
   - hai người cùng bấm "Đã giao" và "Hủy": đúng một người thắng;
   - hai người cùng sửa một đơn: người lưu sau nhận 409 thay vì âm thầm ghi đè.
   Có integration test chạy đồng thời cho cả hai trường hợp, và e2e mở hai tab.
-- **Lịch sử thay đổi (audit trail):** bảng `order_events` ghi ai làm gì, lúc nào (`CREATED` kèm ảnh chụp dữ liệu, `UPDATED` kèm `{field: {from, to}}`, `STATUS_CHANGED`, `DELETED`), **trong cùng transaction** với thay đổi nên không thể có thay đổi mà thiếu lịch sử. Bảng chỉ cho ghi thêm: trigger Postgres chặn `UPDATE`/`DELETE`.
-- **Xác thực không thêm thư viện:** mật khẩu băm bằng `scrypt` (có sẵn trong `node:crypto`, có salt, so sánh constant-time). Phiên là token ngẫu nhiên 256 bit; DB chỉ lưu **SHA-256 của token** nên lộ DB cũng không dùng được để đăng nhập. Cookie `HttpOnly` + `SameSite=Lax` (chặn đọc bằng JS và CSRF qua POST chéo site). [proxy.ts](proxy.ts) chỉ chuyển hướng "lạc quan" sang `/login` cho trải nghiệm tốt; kiểm tra thật nằm cạnh **mỗi** lần đọc dữ liệu và **mỗi** Server Action/route (`requireUser` / `requireApiUser`), đúng khuyến nghị của Next.js. Đăng nhập sai luôn trả cùng một thông báo và tốn cùng thời gian, kể cả khi username không tồn tại.
+- **Lịch sử thay đổi (audit trail):** bảng `order_events` ghi thay đổi gì, lúc nào (`CREATED` kèm ảnh chụp dữ liệu, `UPDATED` kèm `{field: {from, to}}`, `STATUS_CHANGED`, `DELETED`), **trong cùng transaction** với thay đổi nên không thể có thay đổi mà thiếu lịch sử. Bảng chỉ cho ghi thêm: trigger Postgres chặn `UPDATE`/`DELETE`.
 - **Idempotency:** `POST /api/orders` nhận `Idempotency-Key`, lưu vào cột `UNIQUE`. Hai request trùng key chạy đồng thời thì unique index chỉ cho một bản ghi, request còn lại đọc và trả đúng đơn đó. Form tạo đơn tự sinh key ở client cho mỗi lần mở form, tạo lúc bấm lưu chứ không lúc render, để key không bị nhúng vào HTML tĩnh dùng chung cho mọi người.
 - **Phân trang keyset** theo `(created_at, id)` giảm dần, cursor mờ (base64url): ổn định khi có đơn mới chen vào, trang thứ 1000 nhanh như trang 1 (không `OFFSET`). Có index `(status, created_at, id)` và `(created_at, id)`.
 - **Bảng `TRANSITIONS`** ([lib/orders/transitions.ts](lib/orders/transitions.ts)) mô tả máy trạng thái bằng dữ liệu; "đã chốt" = trạng thái không có cạnh đi ra.
 - **Decimal cho tiền:** đơn giá đi từ string → `Prisma.Decimal`, không qua float; JSON trả tiền dạng string; tổng báo cáo cộng bằng Decimal, SQL ép `SUM(amount)::text`. Giao diện định dạng tiền bằng thao tác chuỗi ([lib/format.ts](lib/format.ts)).
 - **DB là lớp phòng thủ thứ hai:** CHECK constraint `quantity > 0`, `unit_price > 0`, `version > 0` (migration viết tay), nên kể cả ghi vòng qua service cũng bị Postgres từ chối.
-- **Lỗi map một chỗ** ([lib/http.ts](lib/http.ts)): `ZodError` 400, chưa đăng nhập 401, `NotFoundError` 404, `ConflictError` 409, `InvalidTransitionError`/`OrderLockedError` 422, còn lại 500 không lộ chi tiết.
+- **Lỗi map một chỗ** ([lib/http.ts](lib/http.ts)): `ZodError` 400, `NotFoundError` 404, `ConflictError` 409, `InvalidTransitionError`/`OrderLockedError` 422, còn lại 500 không lộ chi tiết.
 - **Quan sát được (observability):**
   - log có cấu trúc, mỗi dòng một JSON ([lib/log.ts](lib/log.ts));
   - [proxy.ts](proxy.ts) gắn `x-request-id` cho mọi request (giữ id từ upstream nếu an toàn), trả về trong header và trong body lỗi 500;
@@ -149,7 +132,7 @@ curl $B/health
 | Rủi ro | Vì sao chấp nhận | Xem lại |
 |---|---|---|
 | `npm audit`: 3 cảnh báo *high* ở `deepmerge-ts` ([GHSA-ggr8-5vv4-36mx](https://github.com/advisories/GHSA-ggr8-5vv4-36mx)) qua `@prisma/config` của **Prisma CLI 6.x** | Chỉ được CLI dùng khi đọc cấu hình cục bộ lúc dev/deploy; dữ liệu request không bao giờ đi qua đó. Bản sửa đòi nâng lên Prisma 7 (đổi sang driver adapter + `prisma.config.ts`), là một nâng cấp riêng có kế hoạch. CI chặn mọi advisory high/critical **khác** ([.github/audit-allowlist.txt](.github/audit-allowlist.txt)). | 2027-02-19 hoặc khi nâng Prisma 7 |
-| Chưa giới hạn số lần đăng nhập sai (rate limit) | scrypt làm mỗi lần thử tốn khoảng 50 ms; nên đặt rate limit ở reverse proxy / WAF khi triển khai thật. | Trước khi mở ra Internet |
+| Không có xác thực: ai truy cập được app/API đều đọc và sửa được mọi đơn | Đề không yêu cầu đăng nhập; app dùng trong mạng nội bộ. Khi cần mở ra ngoài thì đặt xác thực ở reverse proxy (vd SSO) hoặc thêm đăng nhập vào app. | Trước khi mở ra Internet |
 
 ## Hướng mở rộng khi dữ liệu lớn
 
@@ -157,7 +140,7 @@ Báo cáo hiện quét bảng `orders` theo index `(status, created_at, id)`. Kh
 
 ## Chưa làm / có thể cải thiện
 
-- Phân quyền theo vai trò; rate limit đăng nhập; đổi mật khẩu trên giao diện.
+- Đăng nhập + phân quyền theo vai trò (khi đó lịch sử thay đổi ghi thêm người thực hiện).
 - Tìm kiếm danh sách đơn.
 - Bảng khách hàng và mặt hàng riêng; nhiều mặt hàng trong một đơn.
 - Nâng Prisma 7 (gỡ cảnh báo audit ở trên).
@@ -166,7 +149,6 @@ Báo cáo hiện quét bảng `orders` theo index `(status, created_at, id)`. Kh
 
 | | |
 |---|---|
-| Đăng nhập ![](docs/screenshots/00-dang-nhap.png) | Danh sách đơn ![](docs/screenshots/01-danh-sach.png) |
-| Tạo đơn (thành tiền tạm tính) ![](docs/screenshots/02-tao-don.png) | Lỗi validate theo field ![](docs/screenshots/03-loi-validate.png) |
-| Đơn mới: sửa / đổi trạng thái / xóa ![](docs/screenshots/04-doi-trang-thai.png) | Đơn đã chốt (chỉ xem) + lịch sử thay đổi ![](docs/screenshots/05-don-da-chot.png) |
-| Báo cáo doanh thu ![](docs/screenshots/06-bao-cao.png) | |
+| Danh sách đơn ![](docs/screenshots/01-danh-sach.png) | Tạo đơn (thành tiền tạm tính) ![](docs/screenshots/02-tao-don.png) |
+| Lỗi validate theo field ![](docs/screenshots/03-loi-validate.png) | Đơn mới: sửa / đổi trạng thái / xóa ![](docs/screenshots/04-doi-trang-thai.png) |
+| Đơn đã chốt (chỉ xem) + lịch sử thay đổi ![](docs/screenshots/05-don-da-chot.png) | Báo cáo doanh thu ![](docs/screenshots/06-bao-cao.png) |

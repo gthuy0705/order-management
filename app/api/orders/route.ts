@@ -1,11 +1,9 @@
-import { requireApiUser } from "@/lib/auth/request";
 import { handleError, json, readJson } from "@/lib/http";
 import { createOrder, listOrders } from "@/lib/orders/service";
 
 // GET /api/orders?status=&limit=&cursor=  →  { items, nextCursor }
 export async function GET(request: Request) {
   try {
-    await requireApiUser(request);
     const params = new URL(request.url).searchParams;
     return json(
       await listOrders({
@@ -23,8 +21,7 @@ export async function GET(request: Request) {
 // created the first time (200 + Idempotent-Replayed) instead of a duplicate.
 export async function POST(request: Request) {
   try {
-    const user = await requireApiUser(request);
-    const { order, replayed } = await createOrder(user, await readJson(request), {
+    const { order, replayed } = await createOrder(await readJson(request), {
       idempotencyKey: request.headers.get("idempotency-key"),
     });
     return replayed
