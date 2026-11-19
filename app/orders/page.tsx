@@ -32,7 +32,9 @@ async function loadOrders(status: string | undefined): Promise<OrderDTO[] | null
 export default function OrdersPage({ searchParams }: PageProps<"/orders">) {
   return (
     <>
-      <h1>Đơn hàng</h1>
+      <div className="page-head">
+        <h1>Đơn hàng</h1>
+      </div>
       <Suspense fallback={<p className="muted">Đang tải…</p>}>
         <OrdersContent searchParams={searchParams} />
       </Suspense>
@@ -47,23 +49,29 @@ async function OrdersContent({ searchParams }: Pick<PageProps<"/orders">, "searc
 
   return (
     <>
-      <nav className="filters" aria-label="Lọc theo trạng thái">
-        {FILTERS.map((filter) => (
-          <Link
-            key={filter.label}
-            href={filter.status ? `/orders?status=${filter.status}` : "/orders"}
-            aria-current={filter.status === current ? "page" : undefined}
-          >
-            {filter.label}
-          </Link>
-        ))}
-      </nav>
+      <div className="toolbar">
+        <nav className="filters" aria-label="Lọc theo trạng thái">
+          {FILTERS.map((filter) => (
+            <Link
+              key={filter.label}
+              href={filter.status ? `/orders?status=${filter.status}` : "/orders"}
+              aria-current={filter.status === current ? "page" : undefined}
+            >
+              {filter.label}
+            </Link>
+          ))}
+        </nav>
+        {orders !== null && <p className="muted">{orders.length} đơn</p>}
+      </div>
 
       {orders === null ? (
         <p className="alert">Trạng thái lọc không hợp lệ.</p>
       ) : orders.length === 0 ? (
-        <p className="muted">
-          Chưa có đơn hàng nào. <Link href="/orders/new">Tạo đơn mới</Link>
+        <p className="panel empty muted">
+          Chưa có đơn hàng nào.{" "}
+          <Link href="/orders/new" className="link">
+            Tạo đơn mới
+          </Link>
         </p>
       ) : (
         <OrdersTable orders={orders} />
@@ -74,7 +82,7 @@ async function OrdersContent({ searchParams }: Pick<PageProps<"/orders">, "searc
 
 function OrdersTable({ orders }: { orders: OrderDTO[] }) {
   return (
-    <div className="table-wrap">
+    <div className="panel table-wrap">
       <table>
         <thead>
           <tr>
@@ -92,7 +100,9 @@ function OrdersTable({ orders }: { orders: OrderDTO[] }) {
           {orders.map((order) => (
             <tr key={order.id}>
               <td>
-                <Link href={`/orders/${order.id}`}>{order.id.slice(-8)}</Link>
+                <Link href={`/orders/${order.id}`} className="order-id link">
+                  {order.id.slice(-8)}
+                </Link>
               </td>
               <td>{order.customerName}</td>
               <td>{order.productName}</td>
@@ -102,7 +112,7 @@ function OrdersTable({ orders }: { orders: OrderDTO[] }) {
               <td>
                 <StatusBadge status={order.status} />
               </td>
-              <td>{formatVnDateTime(order.createdAt)}</td>
+              <td className="muted">{formatVnDateTime(order.createdAt)}</td>
             </tr>
           ))}
         </tbody>

@@ -30,8 +30,10 @@ async function loadReport(from?: string, to?: string): Promise<Result> {
 export default function RevenuePage({ searchParams }: PageProps<"/reports/revenue">) {
   return (
     <>
-      <h1>Báo cáo doanh thu theo ngày</h1>
-      <p className="muted">Chỉ tính đơn đã giao, nhóm theo ngày tạo đơn (giờ Việt Nam).</p>
+      <div className="page-head">
+        <h1>Báo cáo doanh thu theo ngày</h1>
+        <p className="muted">Chỉ tính đơn đã giao, nhóm theo ngày tạo đơn (giờ Việt Nam).</p>
+      </div>
       <Suspense fallback={<p className="muted">Đang tải…</p>}>
         <RevenueContent searchParams={searchParams} />
       </Suspense>
@@ -55,8 +57,8 @@ async function RevenueContent({
   const errors = result.ok ? [] : [...(result.fieldErrors.from ?? []), ...(result.fieldErrors.to ?? [])];
 
   return (
-    <>
-      <Form action="/reports/revenue" className="inline-form">
+    <div className="stack">
+      <Form action="/reports/revenue" className="panel panel--pad inline-form">
         <div className="field">
           <label htmlFor="from">Từ ngày</label>
           <input id="from" name="from" type="date" defaultValue={shownFrom} />
@@ -65,7 +67,9 @@ async function RevenueContent({
           <label htmlFor="to">Đến ngày</label>
           <input id="to" name="to" type="date" defaultValue={shownTo} />
         </div>
-        <button type="submit">Xem báo cáo</button>
+        <button type="submit" className="btn btn--primary">
+          Xem báo cáo
+        </button>
       </Form>
 
       {errors.length > 0 && (
@@ -74,16 +78,16 @@ async function RevenueContent({
         </p>
       )}
       {result.ok && <RevenueTable report={result.report} />}
-    </>
+    </div>
   );
 }
 
 function RevenueTable({ report }: { report: RevenueReport }) {
   if (report.rows.length === 0) {
-    return <p className="muted">Không có đơn đã giao trong khoảng thời gian này.</p>;
+    return <p className="panel empty muted">Không có đơn đã giao trong khoảng thời gian này.</p>;
   }
   return (
-    <div className="table-wrap">
+    <div className="panel table-wrap">
       <table>
         <thead>
           <tr>
@@ -96,7 +100,7 @@ function RevenueTable({ report }: { report: RevenueReport }) {
           {report.rows.map((row) => (
             <tr key={row.day}>
               <td>{formatDay(row.day)}</td>
-              <td className="num">{row.orders}</td>
+              <td className="num muted">{row.orders}</td>
               <td className="num">{formatMoney(row.revenue)}</td>
             </tr>
           ))}
